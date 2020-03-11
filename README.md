@@ -1,5 +1,5 @@
 # kli
-_Kommand Line Interface_
+_KDK command Line Interface_
 
 ## Documentation
 
