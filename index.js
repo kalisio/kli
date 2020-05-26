@@ -26,7 +26,7 @@ async function run (workspace, branch) {
   const modules = Object.keys(workspace)
   for (let i = 0; i < modules.length; i++) {
     const module = modules[i]
-    options = workspace[module]
+    const options = workspace[module]
     if (program.modules && !program.modules.includes(module)) {
       continue
     }
@@ -45,8 +45,7 @@ async function run (workspace, branch) {
           // Check if branch is forced on module, otherwise use CLI/default one
           const branch = options.branch || (typeof program.clone === 'string' ? program.clone : 'master')
           await runCommand(`git clone -b ${branch} https://github.com/${organization}/${module}.git`)
-        }
-        else {
+        } else {
           shell.cd(`${module}`)
           await runCommand(`git pull`)
         }
@@ -94,11 +93,11 @@ async function run (workspace, branch) {
   if (program.link || program.unlink) {
     for (let i = 0; i < modules.length; i++) {
       const module = modules[i]
+      const options = workspace[module]
       if (options.branches && !options.branches.includes(branch)) {
         continue
       }
       console.log(program.link ? `Linking module ${module}` : `Unlinking module ${module}`)
-      options = workspace[module]
       const cwd = process.cwd()
       shell.cd(options.path ? path.join(cwd, options.path, `${module}`) : path.join(cwd, `${module}`))
       for (let i = 0; i < options.dependencies.length; i++) {
@@ -126,7 +125,7 @@ async function run (workspace, branch) {
   }
 }
 
-function commaSeparatedList(values) {
+function commaSeparatedList (values) {
   return values.split(',')
 }
 
@@ -150,5 +149,3 @@ if (!path.isAbsolute(workspace)) workspace = path.join(process.cwd(), workspace)
 // Read workspace file
 workspace = require(workspace)
 run(workspace, program.branch || 'master')
-
-
