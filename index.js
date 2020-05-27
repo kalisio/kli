@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const program = require('commander')
-const _ = require('lodash')
 const path = require('path')
 const makeDebug = require('debug')
 const shell = require('shelljs')
@@ -134,7 +133,7 @@ program
   .usage('<workspacefile> [options]')
   .option('-o, --organization [organization]', 'GitHub organization owing the project', 'kalisio')
   .option('-d, --debug', 'Verbose output for debugging')
-  .option('-c, --clone [branch]', 'Clone git repositories')
+  .option('-c, --clone [branch]', 'Clone git repositories (with optional target branch)')
   .option('-p, --pull', 'Pull git repositories')
   .option('-i, --install', 'Perform yarn install')
   .option('-l, --link', 'Perform yarn link')
