@@ -65,7 +65,7 @@ async function run (workspace, branch) {
         await runCommand(`git checkout ${branch}`)
       }
       if (program.install) {
-        await runCommand('yarn install')
+        await runCommand('yarn install --ignore-optional')
       }
       if (!options.application && program.link) {
         console.log(`Linking global module ${module}`)
@@ -75,7 +75,7 @@ async function run (workspace, branch) {
         shell.cd('api')
         try {
           if (program.install) {
-            await runCommand('yarn install')
+            await runCommand('yarn install --ignore-optional')
           }
         } catch (error) {
           console.log(error)
