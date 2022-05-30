@@ -19,6 +19,48 @@ async function runCommand (command) {
   await wait(2000) // Wait a couple of seconds to ensure files are closed
 }
 
+async function linkPackages(packages) {
+  for (let i = 0; i < packages.length; i++) {
+    const package = packages[i]
+    console.log(`Linking global module ${package}`)
+    shell.cd(`packages/${package}`)
+    await runCommand('yarn link')
+    shell.cd('../..')
+  }
+}
+
+async function unlinkPackages(packages) {
+  for (let i = 0; i < packages.length; i++) {
+    const package = packages[i]
+    console.log(`Unlinking global module ${package}`)
+    shell.cd(`packages/${package}`)
+    await runCommand('yarn unlink')
+    shell.cd('../..')
+  }
+}
+
+async function linkDependencies(dependencies) {
+  for (let i = 0; i < dependencies.length; i++) {
+    const dependency = dependencies[i]
+    try {
+      await runCommand(`yarn link ${dependency}`)
+    } catch (error) {
+      console.log(error)
+    }
+  }
+}
+
+async function unlinkDependencies(dependencies) {
+  for (let i = 0; i < dependencies.length; i++) {
+    const dependency = dependencies[i]
+    try {
+      await runCommand(`yarn unlink ${dependency}`)
+    } catch (error) {
+      console.log(error)
+    }
+  }
+}
+
 async function run (workspace, branch) {
   console.log('Preparing workspace on branch', branch)
   // Process modules
@@ -68,8 +110,14 @@ async function run (workspace, branch) {
         await runCommand('yarn install --ignore-optional')
       }
       if (!options.application && program.link) {
-        console.log(`Linking global module ${module}`)
-        await runCommand('yarn link')
+        // Mono repo
+        if (options.packages) {
+          console.log(`Linking packages from module ${module}`)
+          await linkPackages(Object.keys(options.packages))
+        } else {
+          console.log(`Linking global module ${module}`)
+          await runCommand('yarn link')
+        }
       }
       if (options.application) {
         shell.cd('api')
@@ -98,23 +146,31 @@ async function run (workspace, branch) {
       console.log(program.link ? `Linking module ${module}` : `Unlinking module ${module}`)
       const cwd = process.cwd()
       shell.cd(options.path ? path.join(cwd, options.path, `${module}`) : path.join(cwd, `${module}`))
-      for (let i = 0; i < options.dependencies.length; i++) {
-        const dependency = options.dependencies[i]
-        try {
-          await runCommand(program.link ? `yarn link ${dependency}` : `yarn unlink ${dependency}`)
-        } catch (error) {
-          console.log(error)
+      // Mono repo
+      if (options.packages) {
+        const packages = Object.keys(options.packages)
+        for (let i = 0; i < packages.length; i++) {
+          const package = packages[i]
+          const packageOptions = options.packages[package]
+          shell.cd(`packages/${package}`)
+          if (program.link) {
+            await linkDependencies(packageOptions.dependencies)
+          } else {
+            await unlinkDependencies(packageOptions.dependencies)
+          }
+          shell.cd('../..')
         }
+      } else if (program.link) {
+        await linkDependencies(options.dependencies)
+      } else {
+        await unlinkDependencies(options.dependencies)
       }
       if (options.application) {
         shell.cd('api')
-        for (let i = 0; i < options.dependencies.length; i++) {
-          const dependency = options.dependencies[i]
-          try {
-            await runCommand(program.link ? `yarn link ${dependency}` : `yarn unlink ${dependency}`)
-          } catch (error) {
-            console.log(error)
-          }
+        if (program.link) {
+          await linkDependencies(options.dependencies)
+        } else {
+          await unlinkDependencies(options.dependencies)
         }
         shell.cd('..')
       }
@@ -139,8 +195,14 @@ async function run (workspace, branch) {
     try {
       // Now we have unlinked removed global links
       if (!options.application && program.unlink) {
-        console.log(`Unlinking global module ${module}`)
-        await runCommand('yarn unlink')
+        // Mono repo
+        if (options.packages) {
+          console.log(`Unlinking packages from module ${module}`)
+          await unlinkPackages(Object.keys(options.packages))
+        } else {
+          console.log(`Unlinking global module ${module}`)
+          await runCommand('yarn unlink')
+        }
       }
     } catch (error) {
       console.log(error)
