@@ -20,7 +20,7 @@ module.exports = {
       '@weacast/core', 
       '@weacast/leaflet'
     ],
-    branch: 'es-module'
+    branch: 'es-modules'
   },
   kano: {
     application: true,
