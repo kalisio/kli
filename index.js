@@ -84,8 +84,10 @@ async function run (workspace, branch) {
       try {
         if (program.clone) {
           // Check if branch is forced on module, otherwise use CLI/default one
-          const branch = options.branch || (typeof program.clone === 'string' ? program.clone : 'master')
-          await runCommand(`git clone -b ${branch} https://github.com/${organization}/${module}.git`)
+          const branch = options.branch || (typeof program.clone === 'string' ? program.clone : '')
+          const url = options.url || program.url
+          if (branch) await runCommand(`git clone -b ${branch} ${url}/${organization}/${module}.git`)
+          else await runCommand(`git clone ${url}/${organization}/${module}.git`)
         } else {
           shell.cd(`${module}`)
           await runCommand(`git pull`)
@@ -218,7 +220,8 @@ function commaSeparatedList (values) {
 program
   .version(require('./package.json').version)
   .usage('<workspacefile> [options]')
-  .option('-o, --organization [organization]', 'GitHub organization owing the project', 'kalisio')
+  .option('-o, --organization [organization]', 'GitHub organization or GitLab group owing the project', 'kalisio')
+  .option('-u, --url [url]', 'Git server base URL', 'https://github.com')
   .option('-d, --debug', 'Verbose output for debugging')
   .option('-c, --clone [branch]', 'Clone git repositories (with optional target branch)')
   .option('-p, --pull', 'Pull git repositories')
