@@ -69,6 +69,7 @@ async function run (workspace, branch) {
   for (let i = 0; i < modules.length; i++) {
     const module = modules[i]
     const options = workspace[module]
+    const output = options.output || module
     if (program.modules && !program.modules.includes(module)) {
       continue
     }
@@ -84,7 +85,6 @@ async function run (workspace, branch) {
         if (!fs.existsSync(options.path)) fs.mkdirSync(options.path, { recursive: true })
         shell.cd(path.join(cwd, options.path))
       }
-      const output = options.output || ''
       const organization = options.organization || program.organization
       try {
         if (program.clone) {
@@ -94,7 +94,7 @@ async function run (workspace, branch) {
           if (branch) await runCommand(`git clone -b ${branch} ${url}/${organization}/${module}.git ${output}`)
           else await runCommand(`git clone ${url}/${organization}/${module}.git ${output}`)
         } else {
-          shell.cd(`${module}`)
+          shell.cd(`${output}`)
           await runCommand(`git pull`)
         }
       } catch (error) {
@@ -105,7 +105,7 @@ async function run (workspace, branch) {
     const cwd = process.cwd()
     // Working path for module can be relative to CWD when managing code for different organizations (eg kalisio/weacast)
     // CWD is the root path for the "main" organization usually owing the project
-    shell.cd(options.path ? path.join(cwd, options.path, `${module}`) : path.join(cwd, `${module}`))
+    shell.cd(options.path ? path.join(cwd, options.path, `${output}`) : path.join(cwd, `${output}`))
     try {
       if (program.branch) {
         // Check if branch is forced on module, otherwise use CLI one
@@ -152,7 +152,7 @@ async function run (workspace, branch) {
       }
       console.log(program.link ? `Linking module ${module}` : `Unlinking module ${module}`)
       const cwd = process.cwd()
-      shell.cd(options.path ? path.join(cwd, options.path, `${module}`) : path.join(cwd, `${module}`))
+      shell.cd(options.path ? path.join(cwd, options.path, `${output}`) : path.join(cwd, `${output}`))
       // Mono repo
       if (options.packages) {
         const packages = Object.keys(options.packages)
@@ -188,6 +188,7 @@ async function run (workspace, branch) {
   for (let i = 0; i < modules.length; i++) {
     const module = modules[i]
     const options = workspace[module]
+    const output = options.output || module
     if (program.modules && !program.modules.includes(module)) {
       continue
     }
@@ -198,7 +199,7 @@ async function run (workspace, branch) {
     const cwd = process.cwd()
     // Working path for module can be relative to CWD when managing code for different organizations (eg kalisio/weacast)
     // CWD is the root path for the "main" organization usually owing the project
-    shell.cd(options.path ? path.join(cwd, options.path, `${module}`) : path.join(cwd, `${module}`))
+    shell.cd(options.path ? path.join(cwd, options.path, `${output}`) : path.join(cwd, `${output}`))
     try {
       // Now we have unlinked removed global links
       if (!options.application && program.unlink) {
