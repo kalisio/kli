@@ -2,6 +2,7 @@
 
 const program = require('commander')
 const path = require('path')
+const fs = require('fs')
 const makeDebug = require('debug')
 const shell = require('shelljs')
 const util = require('util')
@@ -79,15 +80,19 @@ async function run (workspace, branch) {
       const cwd = process.cwd()
       // Clone path can be relative to CWD when managing code for different organizations (eg kalisio/weacast)
       // CWD is the root path for the "main" organization usually owing the project
-      if (options.path) shell.cd(path.join(cwd, options.path))
+      if (options.path) {
+        if (!fs.existsSync(options.path)) fs.mkdirSync(options.path, { recursive: true })
+        shell.cd(path.join(cwd, options.path))
+      }
+      const output = options.output || ''
       const organization = options.organization || program.organization
       try {
         if (program.clone) {
           // Check if branch is forced on module, otherwise use CLI/default one
           const branch = options.branch || (typeof program.clone === 'string' ? program.clone : '')
           const url = options.url || program.url
-          if (branch) await runCommand(`git clone -b ${branch} ${url}/${organization}/${module}.git`)
-          else await runCommand(`git clone ${url}/${organization}/${module}.git`)
+          if (branch) await runCommand(`git clone -b ${branch} ${url}/${organization}/${module}.git ${output}`)
+          else await runCommand(`git clone ${url}/${organization}/${module}.git ${output}`)
         } else {
           shell.cd(`${module}`)
           await runCommand(`git pull`)
@@ -223,7 +228,7 @@ program
   .option('-o, --organization [organization]', 'GitHub organization or GitLab group owing the project', 'kalisio')
   .option('-u, --url [url]', 'Git server base URL', 'https://github.com')
   .option('-d, --debug', 'Verbose output for debugging')
-  .option('-c, --clone [branch]', 'Clone git repositories (with optional target branch)')
+  .option('-c, --clone [branch] [output-path]', 'Clone git repositories (with optional target branch)')
   .option('-p, --pull', 'Pull git repositories')
   .option('-i, --install', 'Perform yarn install')
   .option('-l, --link', 'Perform yarn link')
