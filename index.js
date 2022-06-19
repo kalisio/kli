@@ -229,7 +229,7 @@ program
   .option('-o, --organization [organization]', 'GitHub organization or GitLab group owing the project', 'kalisio')
   .option('-u, --url [url]', 'Git server base URL', 'https://github.com')
   .option('-d, --debug', 'Verbose output for debugging')
-  .option('-c, --clone [branch] [output-path]', 'Clone git repositories (with optional target branch)')
+  .option('-c, --clone [branch] [output]', 'Clone git repositories (with optional target branch)')
   .option('-p, --pull', 'Pull git repositories')
   .option('-i, --install', 'Perform yarn install')
   .option('-l, --link', 'Perform yarn link')
