@@ -92,7 +92,7 @@ async function run (workspace, branch) {
           const branch = options.branch || (typeof program.clone === 'string' ? program.clone : '')
           const url = options.url || program.url
           if (branch) {
-            console.log(`Cloning module branch ${branch}`)
+            console.log(`Cloning branch ${branch} of module ${module}`)
             await runCommand(`git clone -b ${branch} ${url}/${organization}/${module}.git ${output}`)
           } 
           else await runCommand(`git clone ${url}/${organization}/${module}.git ${output}`)
