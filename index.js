@@ -147,6 +147,7 @@ async function run (workspace, branch) {
     for (let i = 0; i < modules.length; i++) {
       const module = modules[i]
       const options = workspace[module]
+      const output = options.output || module
       if (options.branches && !options.branches.includes(branch)) {
         continue
       }
