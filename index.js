@@ -247,4 +247,4 @@ let workspace = program.args[0]
 if (!path.isAbsolute(workspace)) workspace = path.join(process.cwd(), workspace)
 // Read workspace file
 workspace = require(workspace)
-run(workspace, program.branch || 'master')
+run(workspace, program.branch) // || 'master')
