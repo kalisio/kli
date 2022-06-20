@@ -91,7 +91,10 @@ async function run (workspace, branch) {
           // Check if branch is forced on module, otherwise use CLI/default one
           const branch = options.branch || (typeof program.clone === 'string' ? program.clone : '')
           const url = options.url || program.url
-          if (branch) await runCommand(`git clone -b ${branch} ${url}/${organization}/${module}.git ${output}`)
+          if (branch) {
+            console.log(`Cloning module branch ${branch}`)
+            await runCommand(`git clone -b ${branch} ${url}/${organization}/${module}.git ${output}`)
+          } 
           else await runCommand(`git clone ${url}/${organization}/${module}.git ${output}`)
         } else {
           shell.cd(`${output}`)
