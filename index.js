@@ -62,8 +62,7 @@ async function unlinkDependencies(dependencies) {
   }
 }
 
-async function run (workspace, branch) {
-  console.log('Preparing workspace on branch', branch)
+async function run (workspace) {
   // Process modules
   const modules = Object.keys(workspace)
   for (let i = 0; i < modules.length; i++) {
@@ -71,9 +70,6 @@ async function run (workspace, branch) {
     const options = workspace[module]
     const output = options.output || module
     if (program.modules && !program.modules.includes(module)) {
-      continue
-    }
-    if (options.branches && !options.branches.includes(branch)) {
       continue
     }
     console.log(`Preparing module ${module}`)
@@ -110,14 +106,16 @@ async function run (workspace, branch) {
     // CWD is the root path for the "main" organization usually owing the project
     shell.cd(options.path ? path.join(cwd, options.path, `${output}`) : path.join(cwd, `${output}`))
     try {
-      if (program.branch) {
+      if (program.branch || program.switch) {
         // Check if branch is forced on module, otherwise use CLI one
         const branch = options.branch || program.branch
-        await runCommand(`git fetch origin ${branch}:${branch}`)
-        await runCommand(`git checkout ${branch}`)
+        if (branch) {
+          await runCommand(`git fetch origin ${branch}`)
+          await runCommand(`git checkout ${branch}`)
+        }
       }
       if (program.install) {
-        await runCommand('yarn install --ignore-optional')
+        await runCommand('yarn install --ignore-optional --check-files')
       }
       if (!options.application && program.link) {
         // Mono repo
@@ -151,9 +149,6 @@ async function run (workspace, branch) {
       const module = modules[i]
       const options = workspace[module]
       const output = options.output || module
-      if (options.branches && !options.branches.includes(branch)) {
-        continue
-      }
       console.log(program.link ? `Linking module ${module}` : `Unlinking module ${module}`)
       const cwd = process.cwd()
       shell.cd(options.path ? path.join(cwd, options.path, `${output}`) : path.join(cwd, `${output}`))
@@ -196,9 +191,6 @@ async function run (workspace, branch) {
     if (program.modules && !program.modules.includes(module)) {
       continue
     }
-    if (options.branches && !options.branches.includes(branch)) {
-      continue
-    }
     console.log(`Finalizing module ${module}`)
     const cwd = process.cwd()
     // Working path for module can be relative to CWD when managing code for different organizations (eg kalisio/weacast)
@@ -233,18 +225,20 @@ program
   .option('-o, --organization [organization]', 'GitHub organization or GitLab group owing the project', 'kalisio')
   .option('-u, --url [url]', 'Git server base URL', 'https://github.com')
   .option('-d, --debug', 'Verbose output for debugging')
-  .option('-c, --clone [branch] [output]', 'Clone git repositories (with optional target branch)')
-  .option('-p, --pull', 'Pull git repositories')
-  .option('-i, --install', 'Perform yarn install')
-  .option('-l, --link', 'Perform yarn link')
-  .option('-ul, --unlink', 'Perform yarn unlink')
-  .option('-b, --branch <branch>', 'Switch git branch')
+  .option('-c, --clone [branch]', 'Clone git repositories (with optional target branch) for all modules')
+  .option('-p, --pull', 'Pull git repositories for all modules')
+  .option('-i, --install', 'Perform yarn install for all modules')
+  .option('-l, --link', 'Perform yarn link for all modules')
+  .option('-ul, --unlink', 'Perform yarn unlink for all modules')
+  .option('-b, --branch <branch>', 'Switch to target git branch in all modules where it des exist')
+  .option('-s, --switch', 'Switch all modules to the default git branch specified in workspace (if any)')
   .option('-m, --modules <modules>', 'Comma separated list of modules from the workspace to apply command on', commaSeparatedList)
   .parse(process.argv)
 
 let workspace = program.args[0]
 // When relative path is given assume it relative to working dir
 if (!path.isAbsolute(workspace)) workspace = path.join(process.cwd(), workspace)
+console.log('Preparing workspace', workspace)
 // Read workspace file
 workspace = require(workspace)
-run(workspace, program.branch || 'master')
+run(workspace)
