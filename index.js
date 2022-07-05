@@ -41,6 +41,7 @@ async function unlinkPackages(packages) {
 }
 
 async function linkDependencies(dependencies) {
+  if (!dependencies) dependencies = []
   for (let i = 0; i < dependencies.length; i++) {
     const dependency = dependencies[i]
     try {
@@ -52,6 +53,7 @@ async function linkDependencies(dependencies) {
 }
 
 async function unlinkDependencies(dependencies) {
+  if (!dependencies) dependencies = []
   for (let i = 0; i < dependencies.length; i++) {
     const dependency = dependencies[i]
     try {
