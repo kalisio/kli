@@ -1,11 +1,12 @@
 module.exports = {
   'feathers-distributed': {
     dependencies: [],
-    branch: 'master'
+    branch: 'buzzard'
   },
   'weacast-core': {
     organization: 'weacast',
     dependencies: [],
+    path: '../weacast',
     branch: 'master'
   },
   'weacast-leaflet': {
@@ -13,6 +14,7 @@ module.exports = {
     dependencies: [
       'weacast-core'
     ],
+    path: '../weacast',
     branch: 'master'
   },
   kdk: {
