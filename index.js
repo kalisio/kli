@@ -232,7 +232,7 @@ program
   .option('-i, --install', 'Perform yarn install for all modules')
   .option('-l, --link', 'Perform yarn link for all modules')
   .option('-ul, --unlink', 'Perform yarn unlink for all modules')
-  .option('-b, --branch <branch>', 'Switch to target git branch in all modules where it des exist')
+  .option('-b, --branch <branch>', 'Switch to target git branch in all modules where it does exist')
   .option('-s, --switch', 'Switch all modules to the default git branch specified in workspace (if any)')
   .option('-m, --modules <modules>', 'Comma separated list of modules from the workspace to apply command on', commaSeparatedList)
   .parse(process.argv)
