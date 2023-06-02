@@ -1,34 +1,35 @@
 module.exports = {
   'feathers-distributed': {
     dependencies: [],
-    branch: 'buzzard'
-  },
-  'weacast-core': {
-    organization: 'weacast',
-    dependencies: [],
-    path: '../weacast',
     branch: 'master'
   },
-  'weacast-leaflet': {
+  'weacast': {
     organization: 'weacast',
-    dependencies: [
-      'weacast-core'
-    ],
-    path: '../weacast',
+    packages: {
+      'core': {
+        dependencies: []
+      },
+      'leaflet': {
+        dependencies: ['@weacast/core']
+      }
+    },
     branch: 'master'
   },
   kdk: {
     dependencies: [
-      'weacast-core', 
-      'weacast-leaflet'
-    ]
+      '@weacast/core', 
+      '@weacast/leaflet'
+    ],
+    branch: 'master'
   },
   kano: {
     application: true,
     dependencies: [
       '@kalisio/feathers-distributed',
-      'weacast-core', 
-      'weacast-leaflet',
-      '@kalisio/kdk']
+      '@weacast/core', 
+      '@weacast/leaflet',
+      '@kalisio/kdk'
+    ],
+    branch: 'master'
   }
 }
