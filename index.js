@@ -96,7 +96,7 @@ async function run (workspace) {
           else await runCommand(`git clone ${url}/${organization}/${module}.git ${output}`)
         } else {
           shell.cd(`${output}`)
-          await runCommand(`git pull`)
+          await runCommand(`git pull --rebase`)
         }
       } catch (error) {
         console.log(error)
