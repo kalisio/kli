@@ -1,4 +1,12 @@
 module.exports = {
+  'feathers-s3': {
+    dependencies: [],
+    branch: 'master'
+  },
+  'feathers-webpush': {
+    dependencies: [],
+    branch: 'master'
+  },
   'feathers-distributed': {
     dependencies: [],
     branch: 'master'
@@ -18,7 +26,9 @@ module.exports = {
   kdk: {
     dependencies: [
       '@weacast/core', 
-      '@weacast/leaflet'
+      '@weacast/leaflet',
+      '@kalisio/feathers-s3',
+      '@kalisio/feathers-webpush'
     ],
     branch: 'master'
   },
@@ -28,7 +38,9 @@ module.exports = {
       '@kalisio/feathers-distributed',
       '@weacast/core', 
       '@weacast/leaflet',
-      '@kalisio/kdk'
+      '@kalisio/kdk',
+      '@kalisio/feathers-s3',
+      '@kalisio/feathers-webpush'
     ],
     branch: 'master'
   }
