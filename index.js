@@ -133,7 +133,7 @@ async function run (workspace) {
         shell.cd('api')
         try {
           if (program.install) {
-            await runCommand('yarn install --ignore-optional')
+            await runCommand('yarn install --ignore-optional --check-files')
           }
         } catch (error) {
           console.log(error)
@@ -227,7 +227,7 @@ program
   .option('-o, --organization [organization]', 'GitHub organization or GitLab group owing the project', 'kalisio')
   .option('-u, --url [url]', 'Git server base URL', 'https://github.com')
   .option('-d, --debug', 'Verbose output for debugging')
-  .option('-c, --clone [branch]', 'Clone git repositories (with optional target branch) for all modules')
+  .option('-c, --clone [branch]', 'Clone git repositories (with  target branch) for all modules')
   .option('-p, --pull', 'Pull git repositories for all modules')
   .option('-i, --install', 'Perform yarn install for all modules')
   .option('-l, --link', 'Perform yarn link for all modules')
