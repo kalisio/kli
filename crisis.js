@@ -32,7 +32,7 @@ module.exports = {
     ],
     branch: 'master'
   },
-  aktnmap: {
+  crisis: {
     application: true,
     dependencies: [
       '@kalisio/feathers-distributed',
