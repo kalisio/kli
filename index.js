@@ -86,14 +86,18 @@ async function run (workspace) {
       const organization = options.organization || program.organization
       try {
         if (program.clone) {
-          // Check if branch is forced on module, otherwise use CLI/default one
-          const branch = options.branch || (typeof program.clone === 'string' ? program.clone : '')
-          const url = options.url || program.url
-          if (branch) {
-            console.log(`Cloning branch ${branch} of module ${module}`)
-            await runCommand(`git clone -b ${branch} ${url}/${organization}/${module}.git ${output}`)
-          } 
-          else await runCommand(`git clone ${url}/${organization}/${module}.git ${output}`)
+          if (!fs.existsSync(output)) {
+            // Check if branch is forced on module, otherwise use CLI/default one
+            const branch = options.branch || (typeof program.clone === 'string' ? program.clone : '')
+            const url = options.url || program.url
+            if (branch) {
+              console.log(`Cloning branch ${branch} of module ${module}`)
+              await runCommand(`git clone -b ${branch} ${url}/${organization}/${module}.git ${output}`)
+            } 
+            else await runCommand(`git clone ${url}/${organization}/${module}.git ${output}`)
+          } else {
+            console.log(`Skipping module ${module}. Module already cloned.`)
+          }
         } else {
           shell.cd(`${output}`)
           await runCommand(`git pull --rebase`)
