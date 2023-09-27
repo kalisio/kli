@@ -52,7 +52,7 @@ Before you continue, you need to make sure that the following tools are installe
 ### Production mode:
 
 ```bash
-yarn install -g @kalisio/kli
+npm install -g @kalisio/kli
 ```
 
 ### Development modes
