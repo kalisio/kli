@@ -3,7 +3,7 @@
 _KDK command line interface_
 
 
-The KDK CLI (a.k.a. kli) is a multiplexer for usual git/yarn commands used when developing KDK-based applications. It allows to easily clone, install, link, unlink, switch branch on all modules and application using a single command.
+The **KDK CLI** (a.k.a. **kli**) is a multiplexer for usual git/yarn commands used when developing KDK-based applications. It allows to easily clone, install, link, unlink, switch branch on all modules and application using a single command.
 
 ## Concepts
 The CLI relies on a workspace file defining the dependency tree between your KDK-based application and modules like this:
@@ -49,13 +49,13 @@ Before you continue, you need to make sure that the following tools are installe
 2. [Node](https://nodejs.org/en/download)
 3. [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/#debian-stable)
  
-### Production version:
+### Production mode:
 
 ```bash
 yarn install -g @kalisio/kli
 ```
 
-### Development version
+### Development modes
 
 To use the master branch locally:
 
@@ -120,7 +120,7 @@ Options:
 
 ## Tips
 
-#### Working on multiple versions
+### Working on multiple versions
 
 In order to be able to switch easily between different versions of NodeJS you usually use a version manager like n (opens new window)/nvm (opens new window)under Linux/Mac or nvm (opens new window)under Windows. However, as links are global to a Yarn installation it can be tricky to switch between different versions of the same repository using different NodeJS versions, e.g. KDK on master branch running under NodeJS v12 and KDK on another branch running under NodeJS v16.
 
@@ -138,6 +138,13 @@ kli workspace-nodejs12.js --unlink
 nvm use 16.0.0
 cd nodejs16
 kli workspace-nodejs16.js --link
+```
+### Aliasing the KLI
+
+When installing the **KLI** in development mode, it could be useful to create an alias, e.g. in your `.bashrc`,  to use it:
+
+```bash
+alias kli="node Path/to/kli/index.js"
 ```
 
 ## Contributing
