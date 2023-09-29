@@ -92,16 +92,16 @@ async function run (workspace) {
             const url = options.url || program.url
             const giturl = url + (url.startsWith('http') ? '/' : ':')
             if (branch) {
-              console.log(`Cloning branch ${branch} of module ${module}`)
-              await runCommand(`git clone -b ${branch} ${giturl}${organization}/${module}.git ${output}`)
+              console.log(`Cloning branch ${branch} of module ${module} (including submodues)`)
+              await runCommand(`git clone --recurse-submodules -b ${branch} ${giturl}${organization}/${module}.git ${output}`)
             } 
-            else await runCommand(`git clone ${giturl}${organization}/${module}.git ${output}`)
+            else await runCommand(`git clone --recurse-submodules ${giturl}${organization}/${module}.git ${output}`)
           } else {
             console.log(`Skipping module ${module}. Module already cloned.`)
           }
         } else {
           shell.cd(`${output}`)
-          await runCommand(`git pull --rebase`)
+          await runCommand(`git pull --recurse-submodules --rebase`)
         }
       } catch (error) {
         console.log(error)
