@@ -64,12 +64,38 @@ async function unlinkDependencies(dependencies) {
   }
 }
 
+// Enter modules root path defined in module options
+function cdRootPath (module, options) {
+  const cwd = process.cwd()
+  // Clone path can be relative to CWD when managing code for different organizations (eg kalisio/weacast)
+  // In this case, CWD is the root path for the "main" organization usually owing the project
+  if (options.path) {
+    const rootPath = path.isAbsolute(options.path) ? options.path : path.join(cwd, options.path)
+    if (!fs.existsSync(rootPath)) fs.mkdirSync(rootPath, { recursive: true })
+    shell.cd(rootPath)
+  }
+}
+
+// Enter output module path defined in module options
+function cdOutputPath (module, options) {
+  const cwd = process.cwd()
+  const output = options.output || module
+  // Working path for module can be relative to CWD when managing code for different organizations (eg kalisio/weacast)
+  // In this case, CWD is the root path for the "main" organization usually owing the project
+  let outputPath = path.join(cwd, `${output}`)
+  if (options.path) {
+    outputPath = path.isAbsolute(options.path) ? path.join(options.path, `${output}`) : path.join(cwd, options.path, `${output}`)
+  }
+  shell.cd(outputPath)
+}
+
 async function run (workspace) {
   // Process modules
   const modules = Object.keys(workspace)
   for (let i = 0; i < modules.length; i++) {
     const module = modules[i]
     const options = workspace[module]
+    // Output dir is relative to modules root path
     const output = options.output || module
     if (program.modules && !program.modules.includes(module)) {
       continue
@@ -77,12 +103,7 @@ async function run (workspace) {
     console.log(`Preparing module ${module}`)
     if (program.clone || program.pull) {
       const cwd = process.cwd()
-      // Clone path can be relative to CWD when managing code for different organizations (eg kalisio/weacast)
-      // CWD is the root path for the "main" organization usually owing the project
-      if (options.path) {
-        if (!fs.existsSync(options.path)) fs.mkdirSync(options.path, { recursive: true })
-        shell.cd(path.join(cwd, options.path))
-      }
+      cdRootPath(module, options)
       const organization = options.organization || program.organization
       try {
         if (program.clone) {
@@ -100,8 +121,7 @@ async function run (workspace) {
             console.log(`Skipping module ${module}. Module already cloned.`)
           }
         } else {
-          shell.cd(`${output}`)
-          await runCommand(`git pull --recurse-submodules --rebase`)
+
         }
       } catch (error) {
         console.log(error)
@@ -109,9 +129,7 @@ async function run (workspace) {
       shell.cd(cwd)
     }
     const cwd = process.cwd()
-    // Working path for module can be relative to CWD when managing code for different organizations (eg kalisio/weacast)
-    // CWD is the root path for the "main" organization usually owing the project
-    shell.cd(options.path ? path.join(cwd, options.path, `${output}`) : path.join(cwd, `${output}`))
+    cdOutputPath(module, options)
     try {
       if (program.branch || program.switch) {
         // Check if branch is forced on module, otherwise use CLI one
@@ -155,10 +173,9 @@ async function run (workspace) {
     for (let i = 0; i < modules.length; i++) {
       const module = modules[i]
       const options = workspace[module]
-      const output = options.output || module
       console.log(program.link ? `Linking module ${module}` : `Unlinking module ${module}`)
       const cwd = process.cwd()
-      shell.cd(options.path ? path.join(cwd, options.path, `${output}`) : path.join(cwd, `${output}`))
+      cdOutputPath(module, options)
       // Mono repo
       if (options.packages) {
         const packages = Object.keys(options.packages)
@@ -194,15 +211,12 @@ async function run (workspace) {
   for (let i = 0; i < modules.length; i++) {
     const module = modules[i]
     const options = workspace[module]
-    const output = options.output || module
     if (program.modules && !program.modules.includes(module)) {
       continue
     }
     console.log(`Finalizing module ${module}`)
     const cwd = process.cwd()
-    // Working path for module can be relative to CWD when managing code for different organizations (eg kalisio/weacast)
-    // CWD is the root path for the "main" organization usually owing the project
-    shell.cd(options.path ? path.join(cwd, options.path, `${output}`) : path.join(cwd, `${output}`))
+    cdOutputPath(module, options)
     try {
       // Now we have unlinked removed global links
       if (!options.application && program.unlink) {
