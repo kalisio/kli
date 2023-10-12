@@ -113,7 +113,7 @@ async function run (workspace) {
             const url = options.url || program.url
             const giturl = url + (url.startsWith('http') ? '/' : ':')
             if (branch) {
-              console.log(`Cloning branch ${branch} of module ${module} (including submodues)`)
+              console.log(`Cloning branch ${branch} of module ${module} (including submodules)`)
               await runCommand(`git clone --recurse-submodules -b ${branch} ${giturl}${organization}/${module}.git ${output}`)
             } 
             else await runCommand(`git clone --recurse-submodules ${giturl}${organization}/${module}.git ${output}`)
