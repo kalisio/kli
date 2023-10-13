@@ -7,13 +7,13 @@ const makeDebug = require('debug')
 const shell = require('shelljs')
 const util = require('util')
 
-const debug = makeDebug('kdk')
+const debug = makeDebug('kli')
 
 const exec = util.promisify(require('child_process').exec)
 const wait = util.promisify(setTimeout)
 
 async function runCommand (command) {
-  if (program.debug) debug('Running command', command)
+  debug('Running command', command)
   const { stdout, stderr } = await exec(command)
   console.log(stdout)
   console.error(stderr)
@@ -72,6 +72,7 @@ function cdRootPath (module, options) {
   if (options.path) {
     const rootPath = path.isAbsolute(options.path) ? options.path : path.join(cwd, options.path)
     if (!fs.existsSync(rootPath)) fs.mkdirSync(rootPath, { recursive: true })
+    debug(`Based on provided path ${options.path} entering`, rootPath)
     shell.cd(rootPath)
   }
 }
@@ -86,6 +87,7 @@ function cdOutputPath (module, options) {
   if (options.path) {
     outputPath = path.isAbsolute(options.path) ? path.join(options.path, `${output}`) : path.join(cwd, options.path, `${output}`)
   }
+  debug(`Based on provided path ${options.path} entering`, outputPath)
   shell.cd(outputPath)
 }
 
@@ -121,7 +123,8 @@ async function run (workspace) {
             console.log(`Skipping module ${module}. Module already cloned.`)
           }
         } else {
-
+          cdOutputPath(module, options)
+          await runCommand(`git pull --recurse-submodules --rebase`)
         }
       } catch (error) {
         console.log(error)
@@ -256,6 +259,8 @@ program
   .option('-m, --modules <modules>', 'Comma separated list of modules from the workspace to apply command on', commaSeparatedList)
   .parse(process.argv)
 
+console.log('fuck')
+process.env.DEBUG="kli*"
 let workspace = program.args[0]
 // When relative path is given assume it relative to working dir
 if (!path.isAbsolute(workspace)) workspace = path.join(process.cwd(), workspace)
