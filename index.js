@@ -248,7 +248,6 @@ program
   .usage('<workspacefile> [options]')
   .option('-o, --organization [organization]', 'GitHub organization or GitLab group owing the project', 'kalisio')
   .option('-u, --url [url]', 'Git server base URL', 'https://github.com')
-  .option('-d, --debug', 'Verbose output for debugging')
   .option('-c, --clone [branch]', 'Clone git repositories (with  target branch) for all modules')
   .option('-p, --pull', 'Pull git repositories for all modules')
   .option('-i, --install', 'Perform yarn install for all modules')
@@ -259,8 +258,6 @@ program
   .option('-m, --modules <modules>', 'Comma separated list of modules from the workspace to apply command on', commaSeparatedList)
   .parse(process.argv)
 
-console.log('fuck')
-process.env.DEBUG="kli*"
 let workspace = program.args[0]
 // When relative path is given assume it relative to working dir
 if (!path.isAbsolute(workspace)) workspace = path.join(process.cwd(), workspace)
