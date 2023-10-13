@@ -1,7 +1,7 @@
 {
   "name": "@kalisio/kli",
   "description": "Kommand-Line Interface",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "homepage": "https://github.com/kalisio/kli",
   "main": "index.js",
   "bin": {
