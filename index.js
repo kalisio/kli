@@ -113,12 +113,21 @@ async function run (workspace) {
             // Check if branch is forced on module, otherwise use CLI/default one
             const branch = options.branch || (typeof program.clone === 'string' ? program.clone : '')
             const url = options.url || program.url
-            const giturl = url + (url.startsWith('http') ? '/' : ':')
+            // git accepts url of the following form (see https://git-scm.com/docs/git-clone#_git_urls) :
+            //  - ssh://[user@]host.xz[:port]/path/to/repo.git/
+            //  - git://host.xz[:port]/path/to/repo.git/
+            //  - http[s]://host.xz[:port]/path/to/repo.git/
+            //  - ftp[s]://host.xz[:port]/path/to/repo.git/
+            // they all start with the uri scheme, host [:port] and then /path
+            // but it also accepts url of the form:
+            //   [user@]host.xz:path/to/repo.git/
+            // where there's no port and path follows ':'
+            const repourl = url + (url.indexOf('://') !== -1 ? '/' : ':') + organization + '/' + module + '.git'
             if (branch) {
               console.log(`Cloning branch ${branch} of module ${module} (including submodules)`)
-              await runCommand(`git clone --recurse-submodules -b ${branch} ${giturl}${organization}/${module}.git ${output}`)
+              await runCommand(`git clone --recurse-submodules -b ${branch} ${repourl} ${output}`)
             } 
-            else await runCommand(`git clone --recurse-submodules ${giturl}${organization}/${module}.git ${output}`)
+            else await runCommand(`git clone --recurse-submodules ${repourl} ${output}`)
           } else {
             console.log(`Skipping module ${module}. Module already cloned.`)
           }
