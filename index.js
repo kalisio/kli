@@ -25,7 +25,7 @@ async function linkPackages(packages) {
     const package = packages[i]
     console.log(`Linking global module ${package}`)
     shell.cd(`packages/${package}`)
-    await runCommand('yarn link')
+    await runCommand(`yarn link ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`)
     shell.cd('../..')
   }
 }
@@ -35,7 +35,7 @@ async function unlinkPackages(packages) {
     const package = packages[i]
     console.log(`Unlinking global module ${package}`)
     shell.cd(`packages/${package}`)
-    await runCommand('yarn unlink')
+    await runCommand(`yarn unlink ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`)
     shell.cd('../..')
   }
 }
@@ -45,7 +45,7 @@ async function linkDependencies(dependencies) {
   for (let i = 0; i < dependencies.length; i++) {
     const dependency = dependencies[i]
     try {
-      await runCommand(`yarn link ${dependency}`)
+      await runCommand(`yarn link ${dependency} ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`)
     } catch (error) {
       console.log(error)
     }
@@ -57,7 +57,7 @@ async function unlinkDependencies(dependencies) {
   for (let i = 0; i < dependencies.length; i++) {
     const dependency = dependencies[i]
     try {
-      await runCommand(`yarn unlink ${dependency}`)
+      await runCommand(`yarn unlink ${dependency} ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`)
     } catch (error) {
       console.log(error)
     }
@@ -161,7 +161,7 @@ async function run (workspace) {
           await linkPackages(Object.keys(options.packages))
         } else {
           console.log(`Linking global module ${module}`)
-          await runCommand('yarn link')
+          await runCommand(`yarn link ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`)
         }
       }
       if (options.application) {
@@ -238,7 +238,7 @@ async function run (workspace) {
           await unlinkPackages(Object.keys(options.packages))
         } else {
           console.log(`Unlinking global module ${module}`)
-          await runCommand('yarn unlink')
+          await runCommand(`yarn unlink ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`)
         }
       }
     } catch (error) {
@@ -261,6 +261,7 @@ program
   .option('-p, --pull', 'Pull git repositories for all modules')
   .option('-i, --install', 'Perform yarn install for all modules')
   .option('-l, --link', 'Perform yarn link for all modules')
+  .option('-lf, --link-folder <folder>', 'Specify the folder to use to register yarn links')
   .option('-ul, --unlink', 'Perform yarn unlink for all modules')
   .option('-b, --branch <branch>', 'Switch to target git branch in all modules where it does exist')
   .option('-s, --switch', 'Switch all modules to the default git branch specified in workspace (if any)')
