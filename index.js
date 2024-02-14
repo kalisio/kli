@@ -123,11 +123,10 @@ async function run (workspace) {
             //   [user@]host.xz:path/to/repo.git/
             // where there's no port and path follows ':'
             const repourl = url + (url.indexOf('://') !== -1 ? '/' : ':') + organization + '/' + module + '.git'
-            if (branch) {
-              console.log(`Cloning branch ${branch} of module ${module} (including submodules)`)
-              await runCommand(`git clone --recurse-submodules -b ${branch} ${repourl} ${output}`)
-            } 
-            else await runCommand(`git clone --recurse-submodules ${repourl} ${output}`)
+            const gitopts = [ '--recurse-submodules' ]
+            if (branch) gitopts.push(`--branch ${branch}`)
+            if (options.shallowClone) gitops.push('--depth 1')
+            await runCommand(`git clone ${gitopts.join(' ')} ${repourl} ${output}`)
           } else {
             console.log(`Skipping module ${module}. Module already cloned.`)
           }
@@ -258,10 +257,11 @@ program
   .option('-o, --organization [organization]', 'GitHub organization or GitLab group owing the project', 'kalisio')
   .option('-u, --url [url]', 'Git server base URL', 'https://github.com')
   .option('-c, --clone [branch]', 'Clone git repositories (with  target branch) for all modules')
+  .option('--shallow-clone', 'Perform a shallow clone, ie. will not pull the whole repository history')
   .option('-p, --pull', 'Pull git repositories for all modules')
   .option('-i, --install', 'Perform yarn install for all modules')
   .option('-l, --link', 'Perform yarn link for all modules')
-  .option('-lf, --link-folder <folder>', 'Specify the folder to use to register yarn links')
+  .option('--link-folder <folder>', 'Specify the folder to use to register yarn links')
   .option('-ul, --unlink', 'Perform yarn unlink for all modules')
   .option('-b, --branch <branch>', 'Switch to target git branch in all modules where it does exist')
   .option('-s, --switch', 'Switch all modules to the default git branch specified in workspace (if any)')
