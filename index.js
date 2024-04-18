@@ -125,7 +125,10 @@ async function run (workspace) {
             const repourl = url + (url.indexOf('://') !== -1 ? '/' : ':') + organization + '/' + module + '.git'
             const gitopts = [ '--recurse-submodules' ]
             if (branch) gitopts.push(`--branch ${branch}`)
-            if (options.shallowClone) gitops.push('--depth 1')
+            if (options.shallowClone) {
+              gitops.push('--depth 1')
+              gitops.push('--shallow-submodules')
+            }
             await runCommand(`git clone ${gitopts.join(' ')} ${repourl} ${output}`)
           } else {
             console.log(`Skipping module ${module}. Module already cloned.`)
