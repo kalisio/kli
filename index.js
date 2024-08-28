@@ -107,34 +107,37 @@ async function run (workspace) {
       const cwd = process.cwd()
       cdRootPath(module, options)
       const organization = options.organization || program.organization
+      const url = options.url || program.url
+      // git accepts url of the following form (see https://git-scm.com/docs/git-clone#_git_urls) :
+      //  - ssh://[user@]host.xz[:port]/path/to/repo.git/
+      //  - git://host.xz[:port]/path/to/repo.git/
+      //  - http[s]://host.xz[:port]/path/to/repo.git/
+      //  - ftp[s]://host.xz[:port]/path/to/repo.git/
+      // they all start with the uri scheme, host [:port] and then /path
+      // but it also accepts url of the form:
+      //   [user@]host.xz:path/to/repo.git/
+      // where there's no port and path follows ':'
+      const repoUrl = url + (url.indexOf('://') !== -1 ? '/' : ':') + organization + '/' + module + '.git'
+      debug('Repository URL is:', repoUrl)
       try {
         if (program.clone) {
           if (!fs.existsSync(output)) {
             // Check if branch is forced on module, otherwise use CLI/default one
             const branch = options.branch || (typeof program.clone === 'string' ? program.clone : '')
-            const url = options.url || program.url
-            // git accepts url of the following form (see https://git-scm.com/docs/git-clone#_git_urls) :
-            //  - ssh://[user@]host.xz[:port]/path/to/repo.git/
-            //  - git://host.xz[:port]/path/to/repo.git/
-            //  - http[s]://host.xz[:port]/path/to/repo.git/
-            //  - ftp[s]://host.xz[:port]/path/to/repo.git/
-            // they all start with the uri scheme, host [:port] and then /path
-            // but it also accepts url of the form:
-            //   [user@]host.xz:path/to/repo.git/
-            // where there's no port and path follows ':'
-            const repourl = url + (url.indexOf('://') !== -1 ? '/' : ':') + organization + '/' + module + '.git'
             const gitopts = [ '--recurse-submodules' ]
             if (branch) gitopts.push(`--branch ${branch}`)
             if (options.shallowClone) {
               gitops.push('--depth 1')
               gitops.push('--shallow-submodules')
             }
-            await runCommand(`git clone ${gitopts.join(' ')} ${repourl} ${output}`)
+            await runCommand(`git clone ${gitopts.join(' ')} ${repoUrl} ${output}`)
           } else {
             console.log(`Skipping module ${module}. Module already cloned.`)
           }
         } else {
           cdOutputPath(module, options)
+          // This ensure that if the URL has changed, eg included token, everything will still work correctly
+          await runCommand(`git remote set-url origin ${repoUrl}`)
           await runCommand(`git pull --recurse-submodules --rebase`)
         }
       } catch (error) {
