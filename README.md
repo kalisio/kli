@@ -100,20 +100,23 @@ kli workspace.js --switch
 Full CLI usage is the following:
 
 ```bash
-Usage: index <workspacefile> [options]
+Usage: kli <workspacefile> [options]
 
 Options:
   -V, --version                      output the version number
   -o, --organization [organization]  GitHub organization or GitLab group owing the project (default: "kalisio")
   -u, --url [url]                    Git server base URL (default: "https://github.com")
-  -c, --clone [branch]               Clone git repositories (with optional target branch) for all modules
+  -c, --clone [branch]               Clone git repositories (with  target branch) for all modules
+  --shallow-clone                    Perform a shallow clone, ie. will not pull the whole repository history
   -p, --pull                         Pull git repositories for all modules
   -i, --install                      Perform yarn install for all modules
   -l, --link                         Perform yarn link for all modules
+  --link-folder <folder>             Specify the folder to use to register yarn links
   -ul, --unlink                      Perform yarn unlink for all modules
   -b, --branch <branch>              Switch to target git branch in all modules where it does exist
   -s, --switch                       Switch all modules to the default git branch specified in workspace (if any)
   -m, --modules <modules>            Comma separated list of modules from the workspace to apply command on
+  --fail-on-error                    If set, the kli will return an error code if some underlying command fail
   -h, --help                         output usage information
 ```
 
