@@ -110,6 +110,7 @@ Options:
   --shallow-clone                    Perform a shallow clone, ie. will not pull the whole repository history
   -p, --pull                         Pull git repositories for all modules
   -i, --install                      Perform yarn install for all modules
+  --check-files                      Use --check-files flag when running yarn install
   -l, --link                         Perform yarn link for all modules
   --link-folder <folder>             Specify the folder to use to register yarn links
   -ul, --unlink                      Perform yarn unlink for all modules

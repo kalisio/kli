@@ -168,7 +168,7 @@ async function run (workspace) {
         }
       }
       if (program.install) {
-        await runCommand('yarn install --ignore-optional --check-files')
+        await runCommand(`yarn install --ignore-optional ${program.checkFiles ? '--check-files' : ''}`)
       }
       if (!options.application && program.link) {
         // Mono repo
@@ -184,7 +184,7 @@ async function run (workspace) {
         shell.cd('api')
         try {
           if (program.install) {
-            await runCommand('yarn install --ignore-optional --check-files')
+            await runCommand(`yarn install --ignore-optional ${program.checkFiles ? '--check-files' : ''}`)
           }
         } catch (error) {
           console.log(error)
@@ -277,6 +277,7 @@ program
   .option('--shallow-clone', 'Perform a shallow clone, ie. will not pull the whole repository history')
   .option('-p, --pull', 'Pull git repositories for all modules')
   .option('-i, --install', 'Perform yarn install for all modules')
+  .option('--check-files', 'Use --check-files flag when running yarn install')
   .option('-l, --link', 'Perform yarn link for all modules')
   .option('--link-folder <folder>', 'Specify the folder to use to register yarn links')
   .option('-ul, --unlink', 'Perform yarn unlink for all modules')
