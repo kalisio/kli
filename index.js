@@ -19,14 +19,15 @@ async function runCommand (command) {
     console.log(stdout)
     console.error(stderr)
   } catch(error) {
-    // command failed, either --fail-on-error is set and we exit now
-    // or it's not set and we rethrow the exception
-    if (program.failOnError) {
+    // command failed, either --no-fail-on-error is set and we rethrow the exception
+    // or it's not set and we exit now
+    if (program.noFailOnError) {
+      throw error
+    } else {
       console.error(error)
-      console.error('Command failed and --fail-on-error is set, exiting ...')
+      console.error('Command failed and --no-fail-on-error is not set, exiting ...')
       process.exit(1)
     }
-    throw error
   }
   await wait(1000) // Wait a couple of seconds to ensure files are closed
 }
@@ -284,7 +285,7 @@ program
   .option('-b, --branch <branch>', 'Switch to target git branch in all modules where it does exist')
   .option('-s, --switch', 'Switch all modules to the default git branch specified in workspace (if any)')
   .option('-m, --modules <modules>', 'Comma separated list of modules from the workspace to apply command on', commaSeparatedList)
-  .option('--fail-on-error', 'If set, the kli will return an error code if some underlying command fail')
+  .option('--no-fail-on-error', 'If not set, the kli will return an error code if some underlying command fail')
   .parse(process.argv)
 
 let workspace = program.args[0]
