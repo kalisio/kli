@@ -21,12 +21,12 @@ async function runCommand (command) {
   } catch(error) {
     // command failed, either --no-fail-on-error is set and we rethrow the exception
     // or it's not set and we exit now
-    if (program.noFailOnError) {
-      throw error
-    } else {
+    if (program.failOnError) {
       console.error(error)
       console.error('Command failed and --no-fail-on-error is not set, exiting ...')
       process.exit(1)
+    } else {
+      throw error
     }
   }
   await wait(1000) // Wait a couple of seconds to ensure files are closed
