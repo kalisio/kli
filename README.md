@@ -36,7 +36,7 @@ Each key is a git repository, i.e. a module, monorepo or application, with the f
 | `url` | Root URL to the remote git repositories (if not given will be https://github.com)
 
 > TIP
-> 
+>
 > The branch option can also target a git tag, typically fo production releases.
 
 ## Installation
@@ -48,7 +48,7 @@ Before you continue, you need to make sure that the following tools are installe
 1. [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 2. [Node](https://nodejs.org/en/download)
 3. [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/#debian-stable)
- 
+
 ### Production mode:
 
 ```bash
@@ -66,7 +66,7 @@ yarn install
 yarn link
 ```
 
-## Usage 
+## Usage
 
 By default, all operations will take effect in the current working directory so that subdirectories named according to modules will be created or expected to already exist.
 
@@ -90,7 +90,7 @@ kli workspace.js --switch
 > By default all git operations target the kalisio organization, you can change this for the whole workspace using the organization CLI option or on specific modules only using the `organization` option in the workspace file. Like this you include modules coming from a separate organization but used as dependencies of the project owned by the main organization of the project.
 
 > WARNING
-> 
+>
 > All operations are performed relative to the CWD by default, you can change this for specific modules only using the path option in the workspace file providing a module path relative to the CWD or absolute. Like this you can for instance have modules coming from a separate organization isolated into their own directory.
 
 > INFO
@@ -161,10 +161,8 @@ Found a bug ? Missing a Feature ? Want to contribute ? check out our [contributi
 
 ## License
 
-This project is licensed under the MIT License - see the [license file](./LICENSE) for details
+Licensed under the [MIT license](LICENSE).
 
-## Authors
+Copyright (c) 2017-20xx [Kalisio](https://kalisio.com)
 
-This project is sponsored by 
-
-[![Kalisio](https://s3.eu-central-1.amazonaws.com/kalisioscope/kalisio/kalisio-logo-black-256x84.png)](https://kalisio.com)
+[![Kalisio](https://kalisio.github.io/kalisioscope/kalisio/kalisio-logo-black-256x84.png)](https://kalisio.com)
