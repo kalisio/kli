@@ -24,16 +24,17 @@ module.exports = {
 
 Each key is a git repository, i.e. a module, monorepo or application, with the following available properties:
 
-| Property | Description |
-|---|---|
-| `dependencies` | List of dependent (KDK-)based modules if any
-| `branch` | Branch the module should be forced on whatever the target branch of the CLI
-| `branches` | List of branches the module is available on (if the target branch of the CLI is not included it will be skipped)
-| `application` | Indicates if this is the main KDK-based application module, i.e. it has an api subfolder
-| `path` | Relative path to the repository on the local disk
-| `organization` | GitHub/GitLab organization the repository belongs to
-| `output` | Name of the repository folder on the local disk
-| `url` | Root URL to the remote git repositories (if not given will be https://github.com)
+| Property         | Description                                                                                                                                                                            |
+|------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `dependencies`   | List of dependent (KDK-)based modules if any                                                                                                                                           |
+| `branch`         | Branch the module should be forced on whatever the target branch of the CLI                                                                                                            |
+| `branches`       | List of branches the module is available on (if the target branch of the CLI is not included it will be skipped)                                                                       |
+| `application`    | Indicates if this is the main KDK-based application module, i.e. it has an api subfolder                                                                                               |
+| `path`           | Relative path to the repository on the local disk                                                                                                                                      |
+| `organization`   | GitHub/GitLab organization the repository belongs to                                                                                                                                   |
+| `output`         | Name of the repository folder on the local disk                                                                                                                                        |
+| `url`            | Root URL to the remote git repositories (if not given will be https://github.com)                                                                                                      |
+| `ignoreOptional` | Define wether `yarn install` command should run with [`--ignore-optional` flag](https://classic.yarnpkg.com/en/docs/cli/install#toc-yarn-install-ignore-optional), defaults to `true`. |
 
 > TIP
 >
