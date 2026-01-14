@@ -169,7 +169,10 @@ async function run (workspace) {
         }
       }
       if (program.install) {
-        await runCommand(`yarn install --ignore-optional ${program.checkFiles ? '--check-files' : ''}`)
+        let yarnOpts = ''
+        if (program.checkFiles) yarnOpts += '--check-files'
+        if (options.ignoreOptional === undefined || options.ignoreOptional === true) yarnOpts += ' --ignore-optional'
+        await runCommand(`yarn install ${yarnOpts}`)
       }
       if (!options.application && program.link) {
         // Mono repo
@@ -185,7 +188,10 @@ async function run (workspace) {
         shell.cd('api')
         try {
           if (program.install) {
-            await runCommand(`yarn install --ignore-optional ${program.checkFiles ? '--check-files' : ''}`)
+            let yarnOpts = ''
+            if (program.checkFiles) yarnOpts += '--check-files'
+            if (options.ignoreOptional === undefined || options.ignoreOptional === true) yarnOpts += ' --ignore-optional'
+            await runCommand(`yarn install ${yarnOpts}`)
           }
         } catch (error) {
           console.log(error)
