@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const program = require('commander')
+const boxenModule = require('boxen')
 const path = require('path')
 const fs = require('fs')
 const makeDebug = require('debug')
@@ -8,11 +9,15 @@ const shell = require('shelljs')
 const util = require('util')
 
 const debug = makeDebug('kli')
+const boxen = boxenModule.default
 
 const exec = util.promisify(require('child_process').exec)
 const wait = util.promisify(setTimeout)
 
-async function runCommand (command) {
+// All errors appearing during execution organized by module
+const errors = {}
+
+async function runCommand (command, module) {
   debug('Running command', command)
   try {
     const { stdout, stderr } = await exec(command)
@@ -26,6 +31,8 @@ async function runCommand (command) {
       console.error('Command failed and --no-fail-on-error is not set, exiting ...')
       process.exit(1)
     } else {
+      if (errors[module]) errors.push(error)
+      else errors[module] = [error]
       throw error
     }
   }
@@ -37,7 +44,7 @@ async function linkPackages(packages) {
     const package = packages[i]
     console.log(`Linking global module ${package}`)
     shell.cd(`packages/${package}`)
-    await runCommand(`yarn link ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`)
+    await runCommand(`yarn link ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, package)
     shell.cd('../..')
   }
 }
@@ -47,7 +54,7 @@ async function unlinkPackages(packages) {
     const package = packages[i]
     console.log(`Unlinking global module ${package}`)
     shell.cd(`packages/${package}`)
-    await runCommand(`yarn unlink ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`)
+    await runCommand(`yarn unlink ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, package)
     shell.cd('../..')
   }
 }
@@ -57,7 +64,7 @@ async function linkDependencies(dependencies) {
   for (let i = 0; i < dependencies.length; i++) {
     const dependency = dependencies[i]
     try {
-      await runCommand(`yarn link ${dependency} ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`)
+      await runCommand(`yarn link ${dependency} ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, dependency)
     } catch (error) {
       console.log(error)
     }
@@ -69,7 +76,7 @@ async function unlinkDependencies(dependencies) {
   for (let i = 0; i < dependencies.length; i++) {
     const dependency = dependencies[i]
     try {
-      await runCommand(`yarn unlink ${dependency} ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`)
+      await runCommand(`yarn unlink ${dependency} ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, dependency)
     } catch (error) {
       console.log(error)
     }
@@ -142,15 +149,15 @@ async function run (workspace) {
               gitops.push('--depth 1')
               gitops.push('--shallow-submodules')
             }
-            await runCommand(`git clone ${gitopts.join(' ')} ${repoUrl} ${output}`)
+            await runCommand(`git clone ${gitopts.join(' ')} ${repoUrl} ${output}`, module)
           } else {
             console.log(`Skipping module ${module}. Module already cloned.`)
           }
         } else {
           cdOutputPath(module, options)
           // This ensure that if the URL has changed, eg included token, everything will still work correctly
-          await runCommand(`git remote set-url origin ${repoUrl}`)
-          await runCommand(`git pull --recurse-submodules --rebase`)
+          await runCommand(`git remote set-url origin ${repoUrl}`, module)
+          await runCommand(`git pull --recurse-submodules --rebase`, module)
         }
       } catch (error) {
         console.log(error)
@@ -164,15 +171,15 @@ async function run (workspace) {
         // Check if branch is forced on module, otherwise use CLI one
         const branch = options.branch || program.branch
         if (branch) {
-          await runCommand(`git fetch origin ${branch}`)
-          await runCommand(`git checkout ${branch}`)
+          await runCommand(`git fetch origin ${branch}`, module)
+          await runCommand(`git checkout ${branch}`, module)
         }
       }
       if (program.install) {
         let yarnOpts = ''
         if (program.checkFiles) yarnOpts += '--check-files'
         if (options.ignoreOptional === undefined || options.ignoreOptional === true) yarnOpts += ' --ignore-optional'
-        await runCommand(`yarn install ${yarnOpts}`)
+        await runCommand(`yarn install ${yarnOpts}`, module)
       }
       if (!options.application && program.link) {
         // Mono repo
@@ -181,7 +188,7 @@ async function run (workspace) {
           await linkPackages(Object.keys(options.packages))
         } else {
           console.log(`Linking global module ${module}`)
-          await runCommand(`yarn link ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`)
+          await runCommand(`yarn link ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, module)
         }
       }
       if (options.application) {
@@ -191,7 +198,7 @@ async function run (workspace) {
             let yarnOpts = ''
             if (program.checkFiles) yarnOpts += '--check-files'
             if (options.ignoreOptional === undefined || options.ignoreOptional === true) yarnOpts += ' --ignore-optional'
-            await runCommand(`yarn install ${yarnOpts}`)
+            await runCommand(`yarn install ${yarnOpts}`, module)
           }
         } catch (error) {
           console.log(error)
@@ -261,13 +268,31 @@ async function run (workspace) {
           await unlinkPackages(Object.keys(options.packages))
         } else {
           console.log(`Unlinking global module ${module}`)
-          await runCommand(`yarn unlink ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`)
+          await runCommand(`yarn unlink ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, module)
         }
       }
     } catch (error) {
       console.log(error)
     }
     shell.cd(cwd)
+  }
+  // Error summary
+  const nbErrors = Object.keys(errors).length
+  if (nbErrors > 0) {
+    console.log(boxen('Encountered errors during execution, you might review it below', { 
+      title: (nbErrors === 1 ? `${nbErrors} error` : `${nbErrors} errors`),
+      titleAlignment: 'center',
+      width: 80,
+      padding: { top: 1, bottom: 1 }
+    }))
+    for (const [module, moduleErrors] of Object.entries(errors)) {
+      console.log(boxen(moduleErrors.map(error => error.stderr || error).join(''), { 
+        title: (moduleErrors.length === 1 ? `${module} : ${moduleErrors.length} error` : `${module} : ${moduleErrors.length} errors`),
+        titleAlignment: 'center',
+        width: 80,
+        padding: { top: 1, bottom: 1 }
+      }))
+    }
   }
 }
 

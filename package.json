@@ -39,6 +39,7 @@
   },
   "directories": {},
   "dependencies": {
+    "boxen": "^8.0.1",
     "commander": "^2.19.0",
     "debug": "^4.1.1",
     "lodash": "^4.17.11",
