@@ -17,6 +17,8 @@ const wait = util.promisify(setTimeout)
 // All errors appearing during execution organized by module
 const errors = {}
 
+const PROUT
+
 async function runCommand (command, module) {
   debug('Running command', command)
   try {
@@ -98,7 +100,6 @@ function cdRootPath (module, options) {
 
 // Enter output module path defined in module options
 function cdOutputPath (module, options) {
-  const prout
   const cwd = process.cwd()
   const output = options.output || module
   // Working path for module can be relative to CWD when managing code for different organizations (eg kalisio/weacast)
