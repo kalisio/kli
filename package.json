@@ -34,7 +34,7 @@
     "release:patch": "npm version patch && npm publish --access=public",
     "release:minor": "npm version minor && npm publish --access=public",
     "release:major": "npm version major && npm publish --access=public",
-    "lint": "standard src/**/*.js test/**/*.js --fix",
+    "lint": "standard index.js --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "directories": {},
@@ -47,6 +47,6 @@
   },
   "devDependencies": {
     "shx": "^0.3.2",
-    "standard": "^12.0.1"
+    "standard": "^17.1.2"
   }
 }

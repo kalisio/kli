@@ -23,7 +23,7 @@ async function runCommand (command, module) {
     const { stdout, stderr } = await exec(command)
     console.log(stdout)
     console.error(stderr)
-  } catch(error) {
+  } catch (error) {
     // command failed, either --no-fail-on-error is set and we rethrow the exception
     // or it's not set and we exit now
     if (program.failOnError) {
@@ -39,27 +39,27 @@ async function runCommand (command, module) {
   await wait(1000) // Wait a couple of seconds to ensure files are closed
 }
 
-async function linkPackages(packages) {
+async function linkPackages (packages) {
   for (let i = 0; i < packages.length; i++) {
-    const package = packages[i]
-    console.log(`Linking global module ${package}`)
-    shell.cd(`packages/${package}`)
-    await runCommand(`yarn link ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, package)
+    const pkg = packages[i]
+    console.log(`Linking global module ${pkg}`)
+    shell.cd(`packages/${pkg}`)
+    await runCommand(`yarn link ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, pkg)
     shell.cd('../..')
   }
 }
 
-async function unlinkPackages(packages) {
+async function unlinkPackages (packages) {
   for (let i = 0; i < packages.length; i++) {
-    const package = packages[i]
-    console.log(`Unlinking global module ${package}`)
-    shell.cd(`packages/${package}`)
-    await runCommand(`yarn unlink ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, package)
+    const pkg = packages[i]
+    console.log(`Unlinking global module ${pkg}`)
+    shell.cd(`packages/${pkg}`)
+    await runCommand(`yarn unlink ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, pkg)
     shell.cd('../..')
   }
 }
 
-async function linkDependencies(dependencies) {
+async function linkDependencies (dependencies) {
   if (!dependencies) dependencies = []
   for (let i = 0; i < dependencies.length; i++) {
     const dependency = dependencies[i]
@@ -71,7 +71,7 @@ async function linkDependencies(dependencies) {
   }
 }
 
-async function unlinkDependencies(dependencies) {
+async function unlinkDependencies (dependencies) {
   if (!dependencies) dependencies = []
   for (let i = 0; i < dependencies.length; i++) {
     const dependency = dependencies[i]
@@ -143,11 +143,11 @@ async function run (workspace) {
           if (!fs.existsSync(output)) {
             // Check if branch is forced on module, otherwise use CLI/default one
             const branch = options.branch || (typeof program.clone === 'string' ? program.clone : '')
-            const gitopts = [ '--recurse-submodules' ]
+            const gitopts = ['--recurse-submodules']
             if (branch) gitopts.push(`--branch ${branch}`)
             if (options.shallowClone) {
-              gitops.push('--depth 1')
-              gitops.push('--shallow-submodules')
+              gitopts.push('--depth 1')
+              gitopts.push('--shallow-submodules')
             }
             await runCommand(`git clone ${gitopts.join(' ')} ${repoUrl} ${output}`, module)
           } else {
@@ -157,7 +157,7 @@ async function run (workspace) {
           cdOutputPath(module, options)
           // This ensure that if the URL has changed, eg included token, everything will still work correctly
           await runCommand(`git remote set-url origin ${repoUrl}`, module)
-          await runCommand(`git pull --recurse-submodules --rebase`, module)
+          await runCommand('git pull --recurse-submodules --rebase', module)
         }
       } catch (error) {
         console.log(error)
@@ -222,9 +222,9 @@ async function run (workspace) {
       if (options.packages) {
         const packages = Object.keys(options.packages)
         for (let i = 0; i < packages.length; i++) {
-          const package = packages[i]
-          const packageOptions = options.packages[package]
-          shell.cd(`packages/${package}`)
+          const pkg = packages[i]
+          const packageOptions = options.packages[pkg]
+          shell.cd(`packages/${pkg}`)
           if (program.link) {
             await linkDependencies(packageOptions.dependencies)
           } else {
@@ -249,7 +249,7 @@ async function run (workspace) {
       shell.cd(cwd)
     }
   }
-  
+
   for (let i = 0; i < modules.length; i++) {
     const module = modules[i]
     const options = workspace[module]
@@ -279,14 +279,14 @@ async function run (workspace) {
   // Error summary
   const nbErrors = Object.keys(errors).length
   if (nbErrors > 0) {
-    console.log(boxen('Encountered errors during execution, you might review it below', { 
+    console.log(boxen('Encountered errors during execution, you might review it below', {
       title: (nbErrors === 1 ? `${nbErrors} error` : `${nbErrors} errors`),
       titleAlignment: 'center',
       width: 80,
       padding: { top: 1, bottom: 1 }
     }))
     for (const [module, moduleErrors] of Object.entries(errors)) {
-      console.log(boxen(moduleErrors.map(error => error.stderr || error).join(''), { 
+      console.log(boxen(moduleErrors.map(error => error.stderr || error).join(''), {
         title: (moduleErrors.length === 1 ? `${module} : ${moduleErrors.length} error` : `${module} : ${moduleErrors.length} errors`),
         titleAlignment: 'center',
         width: 80,
