@@ -7,6 +7,11 @@
   "bin": {
     "kli": "index.js"
   },
+  "lint-staged": {
+    "*.{js,cjs,mjs}": [
+      "yarn lint"
+    ]
+  },
   "keywords": [
     "Kalisio",
     "kli",
@@ -46,6 +51,7 @@
     "shelljs": "^0.8.3"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "shx": "^0.3.2",
     "standard": "^17.1.2"
   }
