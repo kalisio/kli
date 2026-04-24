@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-
-const program = require('commander')
-const boxenModule = require('boxen')
 const path = require('path')
 const fs = require('fs')
+const util = require('util')
+const program = require('commander')
+const boxenModule = require('boxen')
 const makeDebug = require('debug')
 const shell = require('shelljs')
-const util = require('util')
+const chalk = require('chalk')
 
 const debug = makeDebug('kli')
 const boxen = boxenModule.default
@@ -14,15 +14,18 @@ const boxen = boxenModule.default
 const exec = util.promisify(require('child_process').exec)
 const wait = util.promisify(setTimeout)
 
+// Store packages path
+const PACKAGES_DIRS = {}
+
 // All errors appearing during execution organized by module
-const errors = {}
+const ERRORS = {}
 
 async function runCommand (command, module) {
   debug('Running command', command)
   try {
     const { stdout, stderr } = await exec(command)
-    console.log(stdout)
-    console.error(stderr)
+    if (program.commandOutput) console.log(stdout.trim())
+    console.error(stderr.trim())
   } catch (error) {
     // command failed, either --no-fail-on-error is set and we rethrow the exception
     // or it's not set and we exit now
@@ -31,54 +34,139 @@ async function runCommand (command, module) {
       console.error('Command failed and --no-fail-on-error is not set, exiting ...')
       process.exit(1)
     } else {
-      if (errors[module]) errors.push(error)
-      else errors[module] = [error]
+      if (ERRORS[module]) ERRORS[module].push(error)
+      else ERRORS[module] = [error]
       throw error
     }
   }
   await wait(1000) // Wait a couple of seconds to ensure files are closed
 }
 
-async function linkPackages (packages) {
+async function installModule (module, options, packageManager) {
+  let opts = ''
+  let cmd
+  if (packageManager === 'pnpm') {
+    cmd = 'pnpm install'
+    if (program.force) opts += '--force'
+  } else {
+    cmd = 'yarn install'
+    if (program.checkFiles) opts += '--check-files'
+    if (options.ignoreOptional === undefined || options.ignoreOptional === true) opts += ' --ignore-optional'
+  }
+  try {
+    await runCommand(`${cmd} ${opts}`, module)
+    console.log(chalk.green(`✅ Module ${module} installed`))
+  } catch (error) {
+    console.log(chalk.red(`❌ Installing module ${module} failed:`, error))
+  }
+}
+
+// Guess the current module package manager
+function getModulePackageManager () {
+  const pkgJson = JSON.parse(fs.readFileSync('package.json'))
+  const packageManager = pkgJson.packageManager
+  if (packageManager && packageManager.includes('pnpm')) return 'pnpm'
+  return 'yarn'
+}
+
+// Guess whether the current module is a monorepo
+function scanModulePackages (options) {
+  if (fs.existsSync('packages') && fs.statSync('packages').isDirectory()) {
+    const currentDir = process.cwd()
+    const files = fs.readdirSync('packages', { withFileTypes: true })
+    return files.filter(file => file.isDirectory()).map(file => {
+      const organization = options.organization || 'kalisio'
+      const packageName = options.prefix ? `${options.prefix}-${file.name}` : file.name
+      PACKAGES_DIRS[`@${organization}/${packageName}`] = `${currentDir}/packages/${file.name}`
+      return packageName
+    })
+  }
+}
+
+async function linkModule (module, packageManager) {
+  const cmd = packageManager === 'pnpm'
+    ? `ln -s "$(pwd)" "$(yarn global dir)/${module}"`
+    : `yarn link ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`
+  try {
+    await runCommand(cmd, module)
+    console.log(chalk.green(`✅ Module ${module} linked`))
+  } catch (error) {
+    console.log(chalk.red(`❌ Linking  module ${module} failed:`, error))
+  }
+}
+
+async function unlinkModule (module, packageManager) {
+  const cmd = packageManager === 'pnpm'
+    ? `rm -f "$(yarn global dir)/${module}"`
+    : `yarn unlink ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`
+  try {
+    await runCommand(cmd, module)
+    console.log(chalk.green(`✅ Module ${module} unlinked`))
+  } catch (error) {
+    console.log(chalk.red(`❌ Unlinking module ${module} failed:`, error))
+  }
+}
+
+async function linkPackages (packages, packageManager) {
   for (let i = 0; i < packages.length; i++) {
     const pkg = packages[i]
     console.log(`Linking global module ${pkg}`)
     shell.cd(`packages/${pkg}`)
-    await runCommand(`yarn link ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, pkg)
+    try {
+      await linkModule(pkg, packageManager)
+    } catch (error) {
+      console.log(error)
+    }
     shell.cd('../..')
   }
 }
 
-async function unlinkPackages (packages) {
+async function unlinkPackages (packages, packageManager) {
   for (let i = 0; i < packages.length; i++) {
     const pkg = packages[i]
     console.log(`Unlinking global module ${pkg}`)
     shell.cd(`packages/${pkg}`)
-    await runCommand(`yarn unlink ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, pkg)
+    try {
+      await unlinkModule(pkg, packageManager)
+    } catch (error) {
+      console.log(error)
+    }
     shell.cd('../..')
   }
 }
 
-async function linkDependencies (dependencies) {
+async function linkDependencies (dependencies, packageManager) {
   if (!dependencies) dependencies = []
   for (let i = 0; i < dependencies.length; i++) {
     const dependency = dependencies[i]
+    let cmd
+    if (packageManager === 'pnpm') {
+      const dependencyDir = PACKAGES_DIRS[dependency]
+      cmd = `rm -f node_modules/${dependency} && ln -s ${dependencyDir} node_modules/${dependency}`
+    } else {
+      cmd = `yarn link ${dependency} ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`
+    }
     try {
-      await runCommand(`yarn link ${dependency} ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, dependency)
+      await runCommand(cmd, dependency)
+      console.log(chalk.green(`✅ Dependency ${dependency} linked`))
     } catch (error) {
-      console.log(error)
+      console.log(chalk.red(`❌ Linking dependency ${dependency} failed:`, error))
     }
   }
 }
 
-async function unlinkDependencies (dependencies) {
+async function unlinkDependencies (dependencies, packageManager) {
   if (!dependencies) dependencies = []
   for (let i = 0; i < dependencies.length; i++) {
     const dependency = dependencies[i]
+    const cmd = packageManager === 'pnpm'
+      ? `rm -fr node_modules/${dependency} && pnpm install`
+      : `yarn unlink ${dependency} ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`
     try {
-      await runCommand(`yarn unlink ${dependency} ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, dependency)
+      await runCommand(cmd, dependency)
+      console.log(chalk.green(`✅ Dependency ${dependency} unlinked`))
     } catch (error) {
-      console.log(error)
+      console.log(chalk.red(`❌ Unlinking dependency ${dependency} failed:`, error))
     }
   }
 }
@@ -167,6 +255,8 @@ async function run (workspace) {
     const cwd = process.cwd()
     cdOutputPath(module, options)
     try {
+      const packageManager = getModulePackageManager()
+      const packages = scanModulePackages(options)
       if (program.branch || program.switch) {
         // Check if branch is forced on module, otherwise use CLI one
         const branch = options.branch || program.branch
@@ -176,29 +266,25 @@ async function run (workspace) {
         }
       }
       if (program.install) {
-        let yarnOpts = ''
-        if (program.checkFiles) yarnOpts += '--check-files'
-        if (options.ignoreOptional === undefined || options.ignoreOptional === true) yarnOpts += ' --ignore-optional'
-        await runCommand(`yarn install ${yarnOpts}`, module)
+        await installModule(module, options, packageManager)
       }
       if (!options.application && program.link) {
         // Mono repo
-        if (options.packages) {
-          console.log(`Linking packages from module ${module}`)
-          await linkPackages(Object.keys(options.packages))
+        if (packages) {
+          if (packageManager !== 'pnpm' || options.forceLink) {
+            console.log(`Linking packages from module ${module}`)
+            await linkPackages(packages, packageManager)
+          }
         } else {
           console.log(`Linking global module ${module}`)
-          await runCommand(`yarn link ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, module)
+          await linkModule(module, packageManager)
         }
       }
       if (options.application) {
         shell.cd('api')
         try {
           if (program.install) {
-            let yarnOpts = ''
-            if (program.checkFiles) yarnOpts += '--check-files'
-            if (options.ignoreOptional === undefined || options.ignoreOptional === true) yarnOpts += ' --ignore-optional'
-            await runCommand(`yarn install ${yarnOpts}`, module)
+            await installModule(module, options, packageManager)
           }
         } catch (error) {
           console.log(error)
@@ -218,6 +304,7 @@ async function run (workspace) {
       console.log(program.link ? `Linking module ${module}` : `Unlinking module ${module}`)
       const cwd = process.cwd()
       cdOutputPath(module, options)
+      const packageManager = getModulePackageManager()
       // Mono repo
       if (options.packages) {
         const packages = Object.keys(options.packages)
@@ -226,23 +313,23 @@ async function run (workspace) {
           const packageOptions = options.packages[pkg]
           shell.cd(`packages/${pkg}`)
           if (program.link) {
-            await linkDependencies(packageOptions.dependencies)
+            await linkDependencies(packageOptions.dependencies, packageManager)
           } else {
-            await unlinkDependencies(packageOptions.dependencies)
+            await unlinkDependencies(packageOptions.dependencies, packageManager)
           }
           shell.cd('../..')
         }
       } else if (program.link) {
-        await linkDependencies(options.dependencies)
+        await linkDependencies(options.dependencies, packageManager)
       } else {
-        await unlinkDependencies(options.dependencies)
+        await unlinkDependencies(options.dependencies, packageManager)
       }
       if (options.application) {
         shell.cd('api')
         if (program.link) {
-          await linkDependencies(options.dependencies)
+          await linkDependencies(options.dependencies, packageManager)
         } else {
-          await unlinkDependencies(options.dependencies)
+          await unlinkDependencies(options.dependencies, packageManager)
         }
         shell.cd('..')
       }
@@ -260,15 +347,19 @@ async function run (workspace) {
     const cwd = process.cwd()
     cdOutputPath(module, options)
     try {
+      const packageManager = getModulePackageManager()
+      const packages = scanModulePackages(options)
       // Now we have unlinked removed global links
       if (!options.application && program.unlink) {
         // Mono repo
-        if (options.packages) {
-          console.log(`Unlinking packages from module ${module}`)
-          await unlinkPackages(Object.keys(options.packages))
+        if (packages) {
+          if (packageManager !== 'pnpm' || options.forceLink) {
+            console.log(`Unlinking packages from module ${module}`)
+            await unlinkPackages(packages, packageManager)
+          }
         } else {
           console.log(`Unlinking global module ${module}`)
-          await runCommand(`yarn unlink ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`, module)
+          await unlinkModule(module, packageManager)
         }
       }
     } catch (error) {
@@ -277,7 +368,7 @@ async function run (workspace) {
     shell.cd(cwd)
   }
   // Error summary
-  const nbErrors = Object.keys(errors).length
+  const nbErrors = Object.keys(ERRORS).length
   if (nbErrors > 0) {
     console.log(boxen('Encountered errors during execution, you might review it below', {
       title: (nbErrors === 1 ? `${nbErrors} error` : `${nbErrors} errors`),
@@ -285,7 +376,7 @@ async function run (workspace) {
       width: 80,
       padding: { top: 1, bottom: 1 }
     }))
-    for (const [module, moduleErrors] of Object.entries(errors)) {
+    for (const [module, moduleErrors] of Object.entries(ERRORS)) {
       console.log(boxen(moduleErrors.map(error => error.stderr || error).join(''), {
         title: (moduleErrors.length === 1 ? `${module} : ${moduleErrors.length} error` : `${module} : ${moduleErrors.length} errors`),
         titleAlignment: 'center',
@@ -317,6 +408,7 @@ program
   .option('-s, --switch', 'Switch all modules to the default git branch specified in workspace (if any)')
   .option('-m, --modules <modules>', 'Comma separated list of modules from the workspace to apply command on', commaSeparatedList)
   .option('--no-fail-on-error', 'If not set, the kli will return an error code if some underlying command fail')
+  .option('--command-output', 'Display command output')
   .parse(process.argv)
 
 let workspace = program.args[0]
