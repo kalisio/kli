@@ -53,6 +53,7 @@
   },
   "devDependencies": {
     "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "shx": "^0.3.2",
     "standard": "^17.1.2"
   }
