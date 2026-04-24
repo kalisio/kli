@@ -17,8 +17,6 @@ const wait = util.promisify(setTimeout)
 // All errors appearing during execution organized by module
 const errors = {}
 
-const PROUT
-
 async function runCommand (command, module) {
   debug('Running command', command)
   try {
