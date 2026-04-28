@@ -63,10 +63,12 @@ async function installModule (module, options, packageManager) {
 
 // Guess the current module package manager
 function getModulePackageManager () {
-  const pkgJson = JSON.parse(fs.readFileSync('package.json'))
-  const packageManager = pkgJson.packageManager
-  if (packageManager && packageManager.includes('pnpm')) return 'pnpm'
-  return 'yarn'
+  if (fs.existsSync('package.json')) {
+    const pkgJson = JSON.parse(fs.readFileSync('package.json'))
+    const packageManager = pkgJson.packageManager
+    if (packageManager && packageManager.includes('pnpm')) return 'pnpm'
+    return 'yarn'
+  }
 }
 
 // Guess whether the current module is a monorepo
