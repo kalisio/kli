@@ -1,74 +1,33 @@
 #!/usr/bin/env node
-const path = require('path')
-const fs = require('fs')
-const util = require('util')
-const program = require('commander')
-const boxenModule = require('boxen')
-const makeDebug = require('debug')
-const shell = require('shelljs')
-const chalk = require('chalk')
+import path from 'node:path'
+import fs from 'node:fs'
+import { pathToFileURL } from 'node:url'
+import { cac } from 'cac'
+import shell from 'shelljs'
+import makeDebug from 'debug'
+import { logger } from './logger.js'
+import { reporter } from './reporter.js'
+import { Commander } from './commander.js'
+import { createPackageManager } from './package-managers.js'
+
+const pkg = JSON.parse(
+  fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8')
+)
 
 const debug = makeDebug('kli')
-const boxen = boxenModule.default
 
-const exec = util.promisify(require('child_process').exec)
-const wait = util.promisify(setTimeout)
-
-// Store packages path
 const PACKAGES_DIRS = {}
 
-// All errors appearing during execution organized by module
-const ERRORS = {}
-
-async function runCommand (command, module) {
-  debug('Running command', command)
-  try {
-    const { stdout, stderr } = await exec(command)
-    if (program.commandOutput) console.log(stdout.trim())
-    console.error(stderr.trim())
-  } catch (error) {
-    // command failed, either --no-fail-on-error is set and we rethrow the exception
-    // or it's not set and we exit now
-    if (program.failOnError) {
-      console.error(error)
-      console.error('Command failed and --no-fail-on-error is not set, exiting ...')
-      process.exit(1)
-    } else {
-      if (ERRORS[module]) ERRORS[module].push(error)
-      else ERRORS[module] = [error]
-      throw error
-    }
-  }
-  await wait(1000) // Wait a couple of seconds to ensure files are closed
-}
-
-async function installModule (module, options, packageManager) {
-  let opts = ''
-  let cmd
-  if (packageManager === 'pnpm') {
-    cmd = 'pnpm install'
-    if (program.force) opts += '--force'
-  } else {
-    cmd = 'yarn install'
-    if (program.checkFiles) opts += '--check-files'
-    if (options.ignoreOptional === undefined || options.ignoreOptional === true) opts += ' --ignore-optional'
-  }
-  try {
-    await runCommand(`${cmd} ${opts}`, module)
-    console.log(chalk.green(`✅ Module ${module} installed`))
-  } catch (error) {
-    console.log(chalk.red(`❌ Installing module ${module} failed:`, error))
-  }
-}
+// ── Module-level operations ───────────────────────────────────────────────
 
 // Guess the current module package manager
 function getModulePackageManager () {
+  let pkgManagerField
   if (fs.existsSync('package.json')) {
-    const pkgJson = JSON.parse(fs.readFileSync('package.json'))
-    const packageManager = pkgJson.packageManager
-    if (packageManager && packageManager.includes('pnpm')) return 'pnpm'
-    return 'yarn'
+    const pkgJson = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+    pkgManagerField = pkgJson.packageManager
   }
+  return createPackageManager(pkgManagerField, programOptions, commander)
 }
 
 // Guess whether the current module is a monorepo
@@ -85,96 +44,55 @@ function scanModulePackages (options) {
   }
 }
 
-async function linkModule (module, packageManager) {
-  const cmd = packageManager === 'pnpm'
-    ? `ln -s "$(pwd)" "$(yarn global dir)/${module}"`
-    : `yarn link ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`
-  try {
-    await runCommand(cmd, module)
-    console.log(chalk.green(`✅ Module ${module} linked`))
-  } catch (error) {
-    console.log(chalk.red(`❌ Linking  module ${module} failed:`, error))
-  }
-}
+// ── Package-level operations (monorepo) ───────────────────────────────────
 
-async function unlinkModule (module, packageManager) {
-  const cmd = packageManager === 'pnpm'
-    ? `rm -f "$(yarn global dir)/${module}"`
-    : `yarn unlink ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`
-  try {
-    await runCommand(cmd, module)
-    console.log(chalk.green(`✅ Module ${module} unlinked`))
-  } catch (error) {
-    console.log(chalk.red(`❌ Unlinking module ${module} failed:`, error))
-  }
-}
-
-async function linkPackages (packages, packageManager) {
-  for (let i = 0; i < packages.length; i++) {
-    const pkg = packages[i]
-    console.log(`Linking global module ${pkg}`)
+async function linkPackages (module, packages, pm) {
+  if (!packages) return
+  logger.push(module, 'Linking packages...')
+  for (const pkg of packages) {
     shell.cd(`packages/${pkg}`)
-    try {
-      await linkModule(pkg, packageManager)
-    } catch (error) {
-      console.log(error)
-    }
+    await pm.link(pkg)
     shell.cd('../..')
   }
+  logger.pull()
 }
 
-async function unlinkPackages (packages, packageManager) {
-  for (let i = 0; i < packages.length; i++) {
-    const pkg = packages[i]
-    console.log(`Unlinking global module ${pkg}`)
+async function unlinkPackages (module, packages, pm) {
+  if (!packages) return
+  logger.push(module, 'Unlinking packages...')
+  for (const pkg of packages) {
     shell.cd(`packages/${pkg}`)
-    try {
-      await unlinkModule(pkg, packageManager)
-    } catch (error) {
-      console.log(error)
-    }
+    await pm.unlink(pkg)
     shell.cd('../..')
   }
+  logger.pull()
 }
 
-async function linkDependencies (dependencies, packageManager) {
-  if (!dependencies) dependencies = []
-  for (let i = 0; i < dependencies.length; i++) {
-    const dependency = dependencies[i]
-    let cmd
-    if (packageManager === 'pnpm') {
-      const dependencyDir = PACKAGES_DIRS[dependency]
-      cmd = `rm -f node_modules/${dependency} && ln -s ${dependencyDir} node_modules/${dependency}`
-    } else {
-      cmd = `yarn link ${dependency} ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`
-    }
-    try {
-      await runCommand(cmd, dependency)
-      console.log(chalk.green(`✅ Dependency ${dependency} linked`))
-    } catch (error) {
-      console.log(chalk.red(`❌ Linking dependency ${dependency} failed:`, error))
-    }
+// ── Dependency-level operations ───────────────────────────────────────────
+
+async function linkDependencies (module, dependencies, pm) {
+  if (!dependencies) return
+  logger.push(module, 'Linking dependencies...')
+  for (const dependency of dependencies) {
+    const dependencyDir = PACKAGES_DIRS[dependency]
+    await pm.linkDependency(dependency, dependencyDir)
   }
+  logger.pull()
 }
 
-async function unlinkDependencies (dependencies, packageManager) {
-  if (!dependencies) dependencies = []
-  for (let i = 0; i < dependencies.length; i++) {
-    const dependency = dependencies[i]
-    const cmd = packageManager === 'pnpm'
-      ? `rm -fr node_modules/${dependency} && pnpm install`
-      : `yarn unlink ${dependency} ${program.linkFolder ? '--link-folder ' + program.linkFolder : ''}`
-    try {
-      await runCommand(cmd, dependency)
-      console.log(chalk.green(`✅ Dependency ${dependency} unlinked`))
-    } catch (error) {
-      console.log(chalk.red(`❌ Unlinking dependency ${dependency} failed:`, error))
-    }
+async function unlinkDependencies (module, dependencies, pm) {
+  if (!dependencies) return
+  logger.push(module, 'Unlinking dependencies...')
+  for (const dependency of dependencies) {
+    await pm.unlinkDependency(dependency)
   }
+  logger.pull()
 }
+
+// ── Workspace-level operations ───────────────────────────────────────────
 
 // Enter modules root path defined in module options
-function cdRootPath (module, options) {
+function cdRootDir (module, options) {
   const cwd = process.cwd()
   // Clone path can be relative to CWD when managing code for different organizations (eg kalisio/weacast)
   // In this case, CWD is the root path for the "main" organization usually owing the project
@@ -186,12 +104,17 @@ function cdRootPath (module, options) {
   }
 }
 
-// Enter output module path defined in module options
-function cdOutputPath (module, options) {
+// Get output module path taking into account module options
+function getOutputPath (module, options) {
+  return options.output || module
+}
+
+// Enter output module path taking into account module options
+function cdOutputDir (module, options) {
   const cwd = process.cwd()
-  const output = options.output || module
+  const output = getOutputPath(module, options)
   // Working path for module can be relative to CWD when managing code for different organizations (eg kalisio/weacast)
-  // In this case, CWD is the root path for the "main" organization usually owing the project
+  // In this case, CWD is the root path for the "main" organization usually owning the project
   let outputPath = path.join(cwd, `${output}`)
   if (options.path) {
     outputPath = path.isAbsolute(options.path) ? path.join(options.path, `${output}`) : path.join(cwd, options.path, `${output}`)
@@ -201,22 +124,20 @@ function cdOutputPath (module, options) {
 }
 
 async function run (workspace) {
+  // Intanciate the
   // Process modules
   const modules = Object.keys(workspace)
-  for (let i = 0; i < modules.length; i++) {
-    const module = modules[i]
+  for (const module of modules) {
     const options = workspace[module]
-    // Output dir is relative to modules root path
-    const output = options.output || module
-    if (program.modules && !program.modules.includes(module)) {
+    if (programOptions.modules && !programOptions.modules.includes(module)) {
       continue
     }
-    console.log(`Preparing module ${module}`)
-    if (program.clone || program.pull) {
+    logger.info(`Preparing ${module}`)
+    if (programOptions.clone || programOptions.pull) {
       const cwd = process.cwd()
-      cdRootPath(module, options)
-      const organization = options.organization || program.organization
-      const url = options.url || program.url
+      cdRootDir(module, options)
+      const organization = options.organization || programOptions.organization
+      const url = options.url || programOptions.url
       // git accepts url of the following form (see https://git-scm.com/docs/git-clone#_git_urls) :
       //  - ssh://[user@]host.xz[:port]/path/to/repo.git/
       //  - git://host.xz[:port]/path/to/repo.git/
@@ -228,110 +149,111 @@ async function run (workspace) {
       // where there's no port and path follows ':'
       const repoUrl = url + (url.indexOf('://') !== -1 ? '/' : ':') + organization + '/' + module + '.git'
       debug('Repository URL is:', repoUrl)
-      try {
-        if (program.clone) {
-          if (!fs.existsSync(output)) {
-            // Check if branch is forced on module, otherwise use CLI/default one
-            const branch = options.branch || (typeof program.clone === 'string' ? program.clone : '')
-            const gitopts = ['--recurse-submodules']
-            if (branch) gitopts.push(`--branch ${branch}`)
-            if (options.shallowClone) {
-              gitopts.push('--depth 1')
-              gitopts.push('--shallow-submodules')
-            }
-            await runCommand(`git clone ${gitopts.join(' ')} ${repoUrl} ${output}`, module)
-          } else {
-            console.log(`Skipping module ${module}. Module already cloned.`)
+      if (programOptions.clone) {
+        logger.push(module, 'Cloning...')
+        if (!fs.existsSync(getOutputPath(module, options))) {
+          // Check if branch is forced on module, otherwise use CLI/default one
+          const branch = options.branch || (typeof programOptions.clone === 'string' ? programOptions.clone : '')
+          const gitopts = ['--recurse-submodules']
+          if (branch) gitopts.push(`--branch ${branch}`)
+          if (options.shallowClone) {
+            gitopts.push('--depth 1')
+            gitopts.push('--shallow-submodules')
+          }
+          try {
+            await commander.run(`git clone ${gitopts.join(' ')} ${repoUrl} ${getOutputPath(module, options)}`, module)
+            logger.positive('cloned')
+          } catch (error) {
+            logger.negative(`cloned failed: ${error}`)
           }
         } else {
-          cdOutputPath(module, options)
-          // This ensure that if the URL has changed, eg included token, everything will still work correctly
-          await runCommand(`git remote set-url origin ${repoUrl}`, module)
-          await runCommand('git pull --recurse-submodules --rebase', module)
+          logger.warning('clone skipped: module already cloned')
         }
-      } catch (error) {
-        console.log(error)
+        logger.pull()
+      } else {
+        logger.push(module, 'Pulling...')
+        try {
+          cdOutputDir(module, options)
+          // This ensure that if the URL has changed, eg included token, everything will still work correctly
+          await commander.run(`git remote set-url origin ${repoUrl}`, module)
+          await commander.run('git pull --recurse-submodules --rebase', module)
+          logger.positive('pulled')
+        } catch (error) {
+          logger.negative(`pull failed: ${error}`)
+        }
+        logger.pull()
       }
       shell.cd(cwd)
     }
     const cwd = process.cwd()
-    cdOutputPath(module, options)
+    cdOutputDir(module, options)
     try {
       const packageManager = getModulePackageManager()
       const packages = scanModulePackages(options)
-      if (program.branch || program.switch) {
+      if (programOptions.branch || programOptions.switch) {
         // Check if branch is forced on module, otherwise use CLI one
-        const branch = options.branch || program.branch
+        const branch = options.branch || programOptions.branch
         if (branch) {
-          await runCommand(`git fetch origin ${branch}`, module)
-          await runCommand(`git checkout ${branch}`, module)
+          await commander.run(`git fetch origin ${branch}`, module)
+          await commander.run(`git checkout ${branch}`, module)
         }
       }
-      if (program.install) {
-        await installModule(module, options, packageManager)
+      if (programOptions.install) {
+        await packageManager.install(module, options)
       }
-      if (!options.application && program.link) {
+      if (!options.application && programOptions.link) {
         // Mono repo
         if (packages) {
-          if (packageManager !== 'pnpm' || options.forceLink) {
-            console.log(`Linking packages from module ${module}`)
-            await linkPackages(packages, packageManager)
+          if (packageManager.getName() !== 'pnpm' || options.forceLink) {
+            await linkPackages(module, packages, packageManager)
           }
         } else {
-          console.log(`Linking global module ${module}`)
-          await linkModule(module, packageManager)
+          packageManager.link(module)
         }
       }
       if (options.application) {
         shell.cd('api')
-        try {
-          if (program.install) {
-            await installModule(module, options, packageManager)
-          }
-        } catch (error) {
-          console.log(error)
+        if (programOptions.install) {
+          await packageManager.install(module, options)
         }
         shell.cd('..')
       }
     } catch (error) {
-      console.log(error)
+      logger.negative(error)
     }
     shell.cd(cwd)
   }
   // Now everything is installed process with links
-  if (program.link || program.unlink) {
-    for (let i = 0; i < modules.length; i++) {
-      const module = modules[i]
+  if (programOptions.link || programOptions.unlink) {
+    for (const module of modules) {
       const options = workspace[module]
-      console.log(program.link ? `Linking module ${module}` : `Unlinking module ${module}`)
       const cwd = process.cwd()
-      cdOutputPath(module, options)
+      cdOutputDir(module, options)
       const packageManager = getModulePackageManager()
       // Mono repo
       if (options.packages) {
         const packages = Object.keys(options.packages)
-        for (let i = 0; i < packages.length; i++) {
-          const pkg = packages[i]
-          const packageOptions = options.packages[pkg]
+        for (const pkg of packages) {
+          const pkgOptions = options.packages[pkg]
           shell.cd(`packages/${pkg}`)
-          if (program.link) {
-            await linkDependencies(packageOptions.dependencies, packageManager)
+          if (programOptions.link) {
+            await linkDependencies(pkg, pkgOptions.dependencies, packageManager)
           } else {
-            await unlinkDependencies(packageOptions.dependencies, packageManager)
+            await unlinkDependencies(pkg, pkgOptions.dependencies, packageManager)
           }
           shell.cd('../..')
         }
-      } else if (program.link) {
-        await linkDependencies(options.dependencies, packageManager)
+      } else if (programOptions.link) {
+        await linkDependencies(module, options.dependencies, packageManager)
       } else {
-        await unlinkDependencies(options.dependencies, packageManager)
+        await unlinkDependencies(module, options.dependencies, packageManager)
       }
       if (options.application) {
         shell.cd('api')
-        if (program.link) {
-          await linkDependencies(options.dependencies, packageManager)
+        if (programOptions.link) {
+          await linkDependencies(`${module} API`, options.dependencies, packageManager)
         } else {
-          await unlinkDependencies(options.dependencies, packageManager)
+          await unlinkDependencies(`${module} API`, options.dependencies, packageManager)
         }
         shell.cd('..')
       }
@@ -339,84 +261,67 @@ async function run (workspace) {
     }
   }
 
-  for (let i = 0; i < modules.length; i++) {
-    const module = modules[i]
+  for (const module of modules) {
     const options = workspace[module]
-    if (program.modules && !program.modules.includes(module)) {
+    if (programOptions.modules && !programOptions.modules.includes(module)) {
       continue
     }
-    console.log(`Finalizing module ${module}`)
+    logger.info(`Finalizing ${module}`)
     const cwd = process.cwd()
-    cdOutputPath(module, options)
+    cdOutputDir(module, options)
     try {
       const packageManager = getModulePackageManager()
       const packages = scanModulePackages(options)
       // Now we have unlinked removed global links
-      if (!options.application && program.unlink) {
+      if (!options.application && programOptions.unlink) {
         // Mono repo
         if (packages) {
-          if (packageManager !== 'pnpm' || options.forceLink) {
-            console.log(`Unlinking packages from module ${module}`)
-            await unlinkPackages(packages, packageManager)
+          if (packageManager.getName() !== 'pnpm' || options.forceLink) {
+            await unlinkPackages(module, packages, packageManager)
           }
         } else {
-          console.log(`Unlinking global module ${module}`)
-          await unlinkModule(module, packageManager)
+          await packageManager.unlink(module)
         }
       }
     } catch (error) {
-      console.log(error)
+      logger.negative(error)
     }
     shell.cd(cwd)
   }
-  // Error summary
-  const nbErrors = Object.keys(ERRORS).length
-  if (nbErrors > 0) {
-    console.log(boxen('Encountered errors during execution, you might review it below', {
-      title: (nbErrors === 1 ? `${nbErrors} error` : `${nbErrors} errors`),
-      titleAlignment: 'center',
-      width: 80,
-      padding: { top: 1, bottom: 1 }
-    }))
-    for (const [module, moduleErrors] of Object.entries(ERRORS)) {
-      console.log(boxen(moduleErrors.map(error => error.stderr || error).join(''), {
-        title: (moduleErrors.length === 1 ? `${module} : ${moduleErrors.length} error` : `${module} : ${moduleErrors.length} errors`),
-        titleAlignment: 'center',
-        width: 80,
-        padding: { top: 1, bottom: 1 }
-      }))
-    }
-  }
+
+  // Report
+  reporter.report()
 }
 
-function commaSeparatedList (values) {
-  return values.split(',')
+// ── CLI ───────────────────────────────────────────────────────────────────
+
+const cli = cac('kli')
+cli
+  .version(pkg.version)
+  .option('-o, --organization <org>', 'git org')
+  .option('-u, --url <url>', 'git url')
+  .option('-c, --clone [branch]', 'Clone repositories')
+  .option('-p, --pull', 'Pull repositories')
+  .option('-i, --install', 'Install dependencies')
+  .option('-l, --link', 'Link packages')
+  .option('-ul, --unlink', 'Unlink packages')
+  .option('-m, --modules <list>', 'Comma separated list of modules', v => v.split(','))
+  .option('--check-files', 'Check files during install (yarn only)')
+  .option('--command-output', 'Show command output')
+  .option('--fail-on-error', 'Exit on error', false)
+
+const parsed = cli.parse()
+const { options: programOptions, args: programArgs } = parsed
+
+if (!programArgs[0] || programOptions.help) {
+  cli.outputHelp()
+  process.exit(0)
 }
 
-program
-  .version(require('./package.json').version)
-  .usage('<workspacefile> [options]')
-  .option('-o, --organization [organization]', 'GitHub organization or GitLab group owing the project', 'kalisio')
-  .option('-u, --url [url]', 'Git server base URL', 'https://github.com')
-  .option('-c, --clone [branch]', 'Clone git repositories (with  target branch) for all modules')
-  .option('--shallow-clone', 'Perform a shallow clone, ie. will not pull the whole repository history')
-  .option('-p, --pull', 'Pull git repositories for all modules')
-  .option('-i, --install', 'Perform yarn install for all modules')
-  .option('--check-files', 'Use --check-files flag when running yarn install')
-  .option('-l, --link', 'Perform yarn link for all modules')
-  .option('--link-folder <folder>', 'Specify the folder to use to register yarn links')
-  .option('-ul, --unlink', 'Perform yarn unlink for all modules')
-  .option('-b, --branch <branch>', 'Switch to target git branch in all modules where it does exist')
-  .option('-s, --switch', 'Switch all modules to the default git branch specified in workspace (if any)')
-  .option('-m, --modules <modules>', 'Comma separated list of modules from the workspace to apply command on', commaSeparatedList)
-  .option('--no-fail-on-error', 'If not set, the kli will return an error code if some underlying command fail')
-  .option('--command-output', 'Display command output')
-  .parse(process.argv)
+const commander = new Commander(programOptions)
 
-let workspace = program.args[0]
-// When relative path is given assume it relative to working dir
-if (!path.isAbsolute(workspace)) workspace = path.join(process.cwd(), workspace)
-console.log('Preparing workspace', workspace)
-// Read workspace file
-workspace = require(workspace)
-run(workspace)
+const workspaceFilePath = programArgs[0]
+const workspace = await import(pathToFileURL(path.resolve(workspaceFilePath)).href)
+  .then(m => m.default ?? m)
+
+await run(workspace)

@@ -2,6 +2,7 @@
   "name": "@kalisio/kli",
   "description": "Kommand-Line Interface",
   "version": "1.6.0",
+  "type": "module",
   "homepage": "https://github.com/kalisio/kli",
   "main": "index.js",
   "bin": {
@@ -32,7 +33,7 @@
     "url": "https://github.com/kalisio/kli/issues"
   },
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 20.0.0"
   },
   "scripts": {
     "prepare": "husky",
@@ -46,8 +47,8 @@
   "directories": {},
   "dependencies": {
     "boxen": "^8.0.1",
+    "cac": "^7.0.0",
     "chalk": "4",
-    "commander": "^2.19.0",
     "debug": "^4.4.3",
     "shelljs": "^0.8.3"
   },
