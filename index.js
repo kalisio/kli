@@ -10,38 +10,29 @@ import { reporter } from './reporter.js'
 import { Commander } from './commander.js'
 import { createPackageManager } from './package-managers.js'
 
-const pkg = JSON.parse(
-  fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8')
-)
-
 const debug = makeDebug('kli')
 
 const PACKAGES_DIRS = {}
 
-// ── Module-level operations ───────────────────────────────────────────────
+// ── Dependency-level operations ───────────────────────────────────────────
 
-// Guess the current module package manager
-function getModulePackageManager () {
-  let pkgManagerField
-  if (fs.existsSync('package.json')) {
-    const pkgJson = JSON.parse(fs.readFileSync('package.json', 'utf8'))
-    pkgManagerField = pkgJson.packageManager
+async function linkDependencies (module, dependencies, pm) {
+  if (!dependencies) return
+  logger.push(module, 'Linking dependencies...')
+  for (const dependency of dependencies) {
+    const dependencyDir = PACKAGES_DIRS[dependency]
+    await pm.linkDependency(dependency, dependencyDir)
   }
-  return createPackageManager(pkgManagerField, programOptions, commander)
+  logger.pull()
 }
 
-// Guess whether the current module is a monorepo
-function scanModulePackages (options) {
-  if (fs.existsSync('packages') && fs.statSync('packages').isDirectory()) {
-    const currentDir = process.cwd()
-    const files = fs.readdirSync('packages', { withFileTypes: true })
-    return files.filter(file => file.isDirectory()).map(file => {
-      const organization = options.organization || 'kalisio'
-      const packageName = options.prefix ? `${options.prefix}-${file.name}` : file.name
-      PACKAGES_DIRS[`@${organization}/${packageName}`] = `${currentDir}/packages/${file.name}`
-      return packageName
-    })
+async function unlinkDependencies (module, dependencies, pm) {
+  if (!dependencies) return
+  logger.push(module, 'Unlinking dependencies...')
+  for (const dependency of dependencies) {
+    await pm.unlinkDependency(dependency)
   }
+  logger.pull()
 }
 
 // ── Package-level operations (monorepo) ───────────────────────────────────
@@ -68,28 +59,31 @@ async function unlinkPackages (module, packages, pm) {
   logger.pull()
 }
 
-// ── Dependency-level operations ───────────────────────────────────────────
+// ── Module-level operations ───────────────────────────────────────────────
 
-async function linkDependencies (module, dependencies, pm) {
-  if (!dependencies) return
-  logger.push(module, 'Linking dependencies...')
-  for (const dependency of dependencies) {
-    const dependencyDir = PACKAGES_DIRS[dependency]
-    await pm.linkDependency(dependency, dependencyDir)
+// Guess the current module package manager
+function getModulePackageManager () {
+  let pkgManagerField
+  if (fs.existsSync('package.json')) {
+    const pkgJson = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+    pkgManagerField = pkgJson.packageManager
   }
-  logger.pull()
+  return createPackageManager(pkgManagerField, programOptions, commander)
 }
 
-async function unlinkDependencies (module, dependencies, pm) {
-  if (!dependencies) return
-  logger.push(module, 'Unlinking dependencies...')
-  for (const dependency of dependencies) {
-    await pm.unlinkDependency(dependency)
+// Guess whether the current module is a monorepo
+function scanModulePackages (options) {
+  if (fs.existsSync('packages') && fs.statSync('packages').isDirectory()) {
+    const currentDir = process.cwd()
+    const files = fs.readdirSync('packages', { withFileTypes: true })
+    return files.filter(file => file.isDirectory()).map(file => {
+      const organization = options.organization || 'kalisio'
+      const packageName = options.prefix ? `${options.prefix}-${file.name}` : file.name
+      PACKAGES_DIRS[`@${organization}/${packageName}`] = `${currentDir}/packages/${file.name}`
+      return packageName
+    })
   }
-  logger.pull()
 }
-
-// ── Workspace-level operations ───────────────────────────────────────────
 
 // Enter modules root path defined in module options
 function cdRootDir (module, options) {
@@ -122,6 +116,8 @@ function cdOutputDir (module, options) {
   debug(`Based on provided path ${options.path} entering`, outputPath)
   shell.cd(outputPath)
 }
+
+// ── Workspace-level operations ───────────────────────────────────────────
 
 async function run (workspace) {
   // Intanciate the
@@ -295,9 +291,13 @@ async function run (workspace) {
 
 // ── CLI ───────────────────────────────────────────────────────────────────
 
+const PACKAGE_CONTENT = JSON.parse(
+  fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8')
+)
+
 const cli = cac('kli')
 cli
-  .version(pkg.version)
+  .version(PACKAGE_CONTENT.version)
   .option('-o, --organization <org>', 'git org')
   .option('-u, --url <url>', 'git url')
   .option('-c, --clone [branch]', 'Clone repositories')
