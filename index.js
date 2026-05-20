@@ -8,6 +8,7 @@ import makeDebug from 'debug'
 import { logger } from './logger.js'
 import { reporter } from './reporter.js'
 import { Commander } from './commander.js'
+import { Git } from './git.js'
 import { createPackageManager } from './package-managers.js'
 
 const debug = makeDebug('kli')
@@ -117,11 +118,9 @@ function cdOutputDir (module, options) {
   shell.cd(outputPath)
 }
 
-// ── Workspace-level operations ───────────────────────────────────────────
+// ── Main run ───────────────────────────────────────────
 
 async function run (workspace) {
-  // Intanciate the
-  // Process modules
   const modules = Object.keys(workspace)
   for (const module of modules) {
     const options = workspace[module]
@@ -129,58 +128,26 @@ async function run (workspace) {
       continue
     }
     logger.info(`Preparing ${module}`)
+
+    // Process clone or pull commands
     if (programOptions.clone || programOptions.pull) {
       const cwd = process.cwd()
       cdRootDir(module, options)
       const organization = options.organization || programOptions.organization
       const url = options.url || programOptions.url
-      // git accepts url of the following form (see https://git-scm.com/docs/git-clone#_git_urls) :
-      //  - ssh://[user@]host.xz[:port]/path/to/repo.git/
-      //  - git://host.xz[:port]/path/to/repo.git/
-      //  - http[s]://host.xz[:port]/path/to/repo.git/
-      //  - ftp[s]://host.xz[:port]/path/to/repo.git/
-      // they all start with the uri scheme, host [:port] and then /path
-      // but it also accepts url of the form:
-      //   [user@]host.xz:path/to/repo.git/
-      // where there's no port and path follows ':'
-      const repoUrl = url + (url.indexOf('://') !== -1 ? '/' : ':') + organization + '/' + module + '.git'
-      debug('Repository URL is:', repoUrl)
+      const repoUrl = git.buildRepoUrl(url, organization, module)
+      const output = getOutputPath(module, options)
       if (programOptions.clone) {
-        logger.push(module, 'Cloning...')
-        if (!fs.existsSync(getOutputPath(module, options))) {
-          // Check if branch is forced on module, otherwise use CLI/default one
-          const branch = options.branch || (typeof programOptions.clone === 'string' ? programOptions.clone : '')
-          const gitopts = ['--recurse-submodules']
-          if (branch) gitopts.push(`--branch ${branch}`)
-          if (options.shallowClone) {
-            gitopts.push('--depth 1')
-            gitopts.push('--shallow-submodules')
-          }
-          try {
-            await commander.run(`git clone ${gitopts.join(' ')} ${repoUrl} ${getOutputPath(module, options)}`, module)
-            logger.positive('cloned')
-          } catch (error) {
-            logger.negative(`cloned failed: ${error}`)
-          }
-        } else {
-          logger.warning('clone skipped: module already cloned')
-        }
-        logger.pull()
+        const branch = options.branch || (typeof programOptions.clone === 'string' ? programOptions.clone : '')
+        await git.clone(repoUrl, output, { branch, shallowClone: options.shallowClone }, module, fs.existsSync(output))
       } else {
-        logger.push(module, 'Pulling...')
-        try {
-          cdOutputDir(module, options)
-          // This ensure that if the URL has changed, eg included token, everything will still work correctly
-          await commander.run(`git remote set-url origin ${repoUrl}`, module)
-          await commander.run('git pull --recurse-submodules --rebase', module)
-          logger.positive('pulled')
-        } catch (error) {
-          logger.negative(`pull failed: ${error}`)
-        }
-        logger.pull()
+        cdOutputDir(module, options)
+        await git.pull(repoUrl, module)
       }
       shell.cd(cwd)
     }
+
+    // Process switch/install or link commands
     const cwd = process.cwd()
     cdOutputDir(module, options)
     try {
@@ -189,10 +156,7 @@ async function run (workspace) {
       if (programOptions.branch || programOptions.switch) {
         // Check if branch is forced on module, otherwise use CLI one
         const branch = options.branch || programOptions.branch
-        if (branch) {
-          await commander.run(`git fetch origin ${branch}`, module)
-          await commander.run(`git checkout ${branch}`, module)
-        }
+        if (branch) await git.switch(branch, module)
       }
       if (programOptions.install) {
         await packageManager.install(module, options)
@@ -219,7 +183,8 @@ async function run (workspace) {
     }
     shell.cd(cwd)
   }
-  // Now everything is installed process with links
+
+  // Now everything is installed process dependencies link/unlink
   if (programOptions.link || programOptions.unlink) {
     for (const module of modules) {
       const options = workspace[module]
@@ -319,6 +284,7 @@ if (!programArgs[0] || programOptions.help) {
 }
 
 const commander = new Commander(programOptions)
+const git = new Git(commander)
 
 const workspaceFilePath = programArgs[0]
 const workspace = await import(pathToFileURL(path.resolve(workspaceFilePath)).href)
