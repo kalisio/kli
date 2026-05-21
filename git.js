@@ -8,41 +8,36 @@ export class Git {
 
   buildRepoUrl (url, organization, module) {
     const separator = url.indexOf('://') !== -1 ? '/' : ':'
-    const repoUrl = `${url}${separator}${organization}/${module}.git`
-    return repoUrl
+    return `${url}${separator}${organization}/${module}.git`
   }
 
   async clone (repoUrl, output, opts = {}, module) {
     logger.push(module, 'Cloning...')
-    if (fs.existsSync(output)) {
-      logger.warning('clone skipped: module already cloned')
-    } else {
-      const { branch, shallowClone } = opts
-      const flags = ['--recurse-submodules']
-      if (branch) flags.push(`--branch ${branch}`)
-      if (shallowClone) {
-        flags.push('--depth 1')
-        flags.push('--shallow-submodules')
+    try {
+      if (fs.existsSync(output)) {
+        logger.warning('clone skipped: module already cloned')
+      } else {
+        const { branch, shallowClone } = opts
+        const flags = ['--recurse-submodules']
+        if (branch) flags.push(`--branch ${branch}`)
+        if (shallowClone) {
+          flags.push('--depth 1')
+          flags.push('--shallow-submodules')
+        }
+        await this.commander.run(`git clone ${flags.join(' ')} ${repoUrl} ${output}`, { module, message: 'cloned' })
       }
-      try {
-        await this.commander.run(`git clone ${flags.join(' ')} ${repoUrl} ${output}`, module)
-        logger.positive('cloned')
-      } catch (error) {
-        logger.negative(`clone failed: ${error}`)
-      }
+    } finally {
+      logger.pull()
     }
-    logger.pull()
   }
 
   async pull (repoUrl, module) {
     logger.push(module, 'Pulling...')
     try {
-      await this.commander.run(`git remote set-url origin ${repoUrl}`, module)
-      await this.commander.run('git pull --recurse-submodules --rebase', module)
-      logger.positive('pulled')
-    } catch (error) {
-      logger.negative(`pull failed: ${error}`)
+      await this.commander.run(`git remote set-url origin ${repoUrl}`, { module })
+      await this.commander.run('git pull --recurse-submodules --rebase', { module, message: 'pulled' })
+    } finally {
+      logger.pull()
     }
-    logger.pull()
   }
 }

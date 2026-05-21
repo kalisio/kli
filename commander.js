@@ -7,22 +7,26 @@ const exec = promisify(execCb)
 const wait = promisify(setTimeout)
 
 export class Commander {
-  constructor (programOptions = {}) {
+  constructor (programOptions = {}, cwd = process.cwd()) {
     this.programOptions = programOptions
+    this.cwd = cwd
   }
 
-  async run (command, context) {
+  async run (command, context = {}) {
+    const { module, message } = context
     try {
-      const { stdout, stderr } = await exec(command)
+      const { stdout, stderr } = await exec(command, { cwd: this.cwd })
       if (this.programOptions.commandOutput) logger.log(stdout.trim())
       if (stderr !== '') logger.warning(stderr.trim())
+      if (message) logger.positive(message)
     } catch (error) {
       if (this.programOptions.failOnError) {
         logger.negative(error)
         logger.warning('Command failed and no-fail-on-error is not set, exiting ...')
         process.exit(1)
       } else {
-        reporter.addError(context, error)
+        if (message) logger.negative(`${message} failed: ${error}`)
+        if (module) reporter.addError(module, error)
         throw error
       }
     }

@@ -20,68 +20,58 @@ class Yarn {
     }
     logger.push(module, 'Installing...')
     try {
-      await this.commander.run(`yarn install ${opts.join(' ')}`.trimEnd(), module)
-      logger.positive('installed')
-    } catch (error) {
-      logger.negative(`installation failed: ${error}`)
+      await this.commander.run(`yarn install ${opts.join(' ')}`.trimEnd(), { module, message: 'installed' })
+    } finally {
+      logger.pull()
     }
-    logger.pull()
   }
 
   async link (module) {
     const opts = this.programOptions.linkFolder ? `--link-folder ${this.programOptions.linkFolder}` : ''
     logger.push(module, 'Linking...')
     try {
-      await this.commander.run(`yarn link ${opts}`.trimEnd(), module)
-      logger.positive('linked')
-    } catch (error) {
-      logger.negative(`link failed: ${error}`)
+      await this.commander.run(`yarn link ${opts}`.trimEnd(), { module, message: 'linked' })
+    } finally {
+      logger.pull()
     }
-    logger.pull()
   }
 
   async unlink (module) {
     const opts = this.programOptions.linkFolder ? `--link-folder ${this.programOptions.linkFolder}` : ''
     logger.push(module, 'Unlinking...')
     try {
-      await this.commander.run(`yarn unlink ${opts}`.trimEnd(), module)
-      logger.positive('unlinked')
-    } catch (error) {
-      logger.negative(`unlink failed: ${error}`)
+      await this.commander.run(`yarn unlink ${opts}`.trimEnd(), { module, message: 'unlinked' })
+    } finally {
+      logger.pull()
     }
-    logger.pull()
   }
 
   async linkDependency (dependency) {
     const opts = this.programOptions.linkFolder ? `--link-folder ${this.programOptions.linkFolder}` : ''
     logger.push(dependency, 'Linking...')
     try {
-      await this.commander.run(`yarn link ${dependency} ${opts}`.trimEnd(), dependency)
-      logger.positive('linked')
-    } catch (error) {
-      logger.negative(`link failed: ${error}`)
+      await this.commander.run(`yarn link ${dependency} ${opts}`.trimEnd(), { module: dependency, message: 'linked' })
+    } finally {
+      logger.pull()
     }
-    logger.pull()
   }
 
   async unlinkDependency (dependency) {
     const opts = this.programOptions.linkFolder ? `--link-folder ${this.programOptions.linkFolder}` : ''
     logger.push(dependency, 'Unlinking...')
     try {
-      await this.commander.run(`yarn unlink ${dependency} ${opts}`.trimEnd(), dependency)
-      logger.positive('unlinked')
-    } catch (error) {
-      logger.negative(`unlink failed: ${error}`)
+      await this.commander.run(`yarn unlink ${dependency} ${opts}`.trimEnd(), { module: dependency, message: 'unlinked' })
+    } finally {
+      logger.pull()
     }
-    logger.pull()
   }
 }
 
 // ── Pnpm implementation ───────────────────────────────────────────────────
 
 class Pnpm {
-  constructor (options = {}, commander) {
-    this.programOptions = options
+  constructor (programOptions = {}, commander) {
+    this.programOptions = programOptions
     this.commander = commander
   }
 
@@ -92,68 +82,60 @@ class Pnpm {
   async install (module) {
     logger.push(module, 'Installing...')
     try {
-      await this.commander.run('pnpm install', module)
-      logger.positive('installed')
-    } catch (error) {
-      logger.negative(`installation failed: ${error}`)
+      await this.commander.run('pnpm install', { module, message: 'installed' })
+    } finally {
+      logger.pull()
     }
-    logger.pull()
   }
 
-  /**
-   * pnpm doesn't have a native `link` command equivalent to yarn link,
-   * so we simulate it with a symlink into the global dir.
-   */
+  getLinkDir () {
+    return this.programOptions.linkFolder ?? '$(yarn global dir)'
+  }
+
   async link (module) {
     logger.push(module, 'Linking...')
     try {
-      await this.commander.run(`ln -s "$(pwd)" "$(yarn global dir)/${module}"`, module)
-      logger.positive('linked')
-    } catch (error) {
-      logger.negative(`link failed: ${error}`)
+      const linkDir = this.getLinkDir()
+      await this.commander.run(`ln -s "${this.commander.cwd}" "${linkDir}/${module}"`, { module, message: 'linked' })
+    } finally {
+      logger.pull()
     }
-    logger.pull()
   }
 
   async unlink (module) {
     logger.push(module, 'Unlinking...')
     try {
-      await this.commander.run(`rm -f "$(yarn global dir)/${module}"`, module)
-      logger.positive('unlinked')
-    } catch (error) {
-      logger.negative(`unlink failed: ${error}`)
+      const linkDir = this.getLinkDir()
+      await this.commander.run(`rm -f "${linkDir}/${module}"`, { module, message: 'unlinked' })
+    } finally {
+      logger.pull()
     }
-    logger.pull()
   }
 
   async linkDependency (dependency, dependencyDir) {
     logger.push(dependency, 'Linking...')
     try {
-      await this.commander.run(`rm -f node_modules/${dependency} && ln -s ${dependencyDir} node_modules/${dependency}`, dependency)
-      logger.positive('linked')
-    } catch (error) {
-      logger.negative(`link failed: ${error}`)
+      await this.commander.run(`rm -f node_modules/${dependency} && ln -s ${dependencyDir} node_modules/${dependency}`, { module: dependency, message: 'linked' })
+    } finally {
+      logger.pull()
     }
-    logger.pull()
   }
 
   async unlinkDependency (dependency) {
     logger.push(dependency, 'Unlinking...')
     try {
-      await this.commander.run(`rm -fr node_modules/${dependency} && pnpm install`, dependency)
-      logger.positive('unlinked')
-    } catch (error) {
-      logger.negative(`unlink failed: ${error}`)
+      await this.commander.run(`rm -fr node_modules/${dependency} && pnpm install`, { module: dependency, message: 'unlinked' })
+    } finally {
+      logger.pull()
     }
-    logger.pull()
   }
 }
 
 // ── Factory ───────────────────────────────────────────────────────────────
 
-export function createPackageManager (packageManagerField, options = {}, commander) {
+export function createPackageManager (packageManagerField, programOptions = {}, commander) {
   if (packageManagerField && packageManagerField.includes('pnpm')) {
-    return new Pnpm(options, commander)
+    return new Pnpm(programOptions, commander)
   }
-  return new Yarn(options, commander)
+  return new Yarn(programOptions, commander)
 }
