@@ -263,9 +263,9 @@ const PACKAGE_CONTENT = JSON.parse(
 const cli = cac('kli')
 cli
   .version(PACKAGE_CONTENT.version)
-  .option('-o, --organization <org>', 'GitHub organization or GitLab group owing the project (default: "kalisio")')
-  .option('-u, --url <url>', 'Git server base URL (default: "https://github.com")')
-  .option('-c, --clone [branch]', 'Clone git repositories (with  target branch) for all modules')
+  .option('-o, --organization <org>', 'GitHub organization or GitLab group owing the project', { default: 'kalisio' })
+  .option('-u, --url <url>', 'Git server base URL', { default: 'https://github.com' })
+  .option('-c, --clone [branch]', 'Clone git repositories (with target branch) for all modules')
   .option('--shallow-clone', 'Perform a shallow clone, ie. will not pull the whole repository history')
   .option('-b, --branch <branch>', 'Switch to target git branch in all modules where it does exist')
   .option('-s, --switch', 'Switch all modules to the default git branch specified in workspace (if any)')
@@ -275,9 +275,9 @@ cli
   .option('-l, --link', 'Link packages')
   .option('--link-folder <folder>', 'Specify the folder to use to register yarn links')
   .option('-ul, --unlink', 'Unlink packages')
-  .option('-m, --modules <list>', 'Comma separated list of modules', v => v.split(','))
+  .option('-m, --modules <list>', 'Comma separated list of modules')
   .option('--command-output', 'Show command output')
-  .option('--fail-on-error', 'Exit on error', false)
+  .option('--fail-on-error', 'Exit on error', { default: false })
 
 const parsed = cli.parse()
 const { options: programOptions, args: programArgs } = parsed
@@ -285,6 +285,10 @@ const { options: programOptions, args: programArgs } = parsed
 if (!programArgs[0] || programOptions.help) {
   cli.outputHelp()
   process.exit(0)
+}
+
+if (typeof programOptions.modules === 'string') {
+  programOptions.modules = programOptions.modules.split(',')
 }
 
 const commander = new Commander(programOptions)
