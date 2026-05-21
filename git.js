@@ -45,16 +45,4 @@ export class Git {
     }
     logger.pull()
   }
-
-  async switch (branch, module) {
-    logger.push(module, `Switching to branch ${branch}...`)
-    try {
-      await this.commander.run(`git fetch origin ${branch}`, module)
-      await this.commander.run(`git checkout ${branch}`, module)
-      logger.positive('switched')
-    } catch (error) {
-      logger.negative(`switch failed: ${error}`)
-    }
-    logger.pull()
-  }
 }

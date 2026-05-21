@@ -85,22 +85,15 @@ kli workspace.js --install
 kli workspace.js --link
 // Will perform unlink between required modules and application
 kli workspace.js --unlink
-// Will perform branch switching on all modules and application having the given target branch
-kli workspace.js --branch test
-// Will perform branch switching on all modules and application using the specified branch in workspace
-kli workspace.js --switch
 ```
 
-> WARNING
->
+> [!IMPORTANT]
 > By default all git operations target the kalisio organization, you can change this for the whole workspace using the organization CLI option or on specific modules only using the `organization` option in the workspace file. Like this you include modules coming from a separate organization but used as dependencies of the project owned by the main organization of the project.
 
-> WARNING
->
+> [!IMPORTANT]
 > All operations are performed relative to the CWD by default, you can change this for specific modules only using the path option in the workspace file providing a module path relative to the CWD or absolute. Like this you can for instance have modules coming from a separate organization isolated into their own directory.
 
-> INFO
->
+> [!NOTE]
 > Sample workspaces are provided in this repository.
 
 Full CLI usage is the following:
@@ -120,8 +113,6 @@ Options:
   -l, --link                         Perform yarn link for all modules
   --link-folder <folder>             Specify the folder to use to register yarn links
   -ul, --unlink                      Perform yarn unlink for all modules
-  -b, --branch <branch>              Switch to target git branch in all modules where it does exist
-  -s, --switch                       Switch all modules to the default git branch specified in workspace (if any)
   -m, --modules <modules>            Comma separated list of modules from the workspace to apply command on
   --fail-on-error                    If set, the kli will return an error code if some underlying command fail
   -h, --help                         output usage information
@@ -138,9 +129,9 @@ export DEBUG=kli*
 
 In order to be able to switch easily between different versions of NodeJS you usually use a version manager like [n](https://github.com/tj/n)/[nvm](https://github.com/creationix/nvm) under Linux/Mac or [nvm](https://github.com/coreybutler/nvm-windows) under Windows. However, as links are global to a Yarn installation it can be tricky to switch between different versions of the same repository using different NodeJS versions, e.g. KDK on master branch running under NodeJS v12 and KDK on another branch running under NodeJS v16.
 
-Although you can have a single local KDK repository and switch between the branches we do not recommand it. Indeed, each time you will switch you will also have to reinstall all the dependencies for the new NodeJS version, which can be cumbersome and has proven to be error-prone for package managers. Moreover, the branch names between the different repositories in a complex architecture might not be consistent. Last but not least, sometimes the repositories themselves might change their names or location between different versions.
+Although you can have a single local KDK repository and switch between the branches we do not recommend it. Indeed, each time you will switch you will also have to reinstall all the dependencies for the new NodeJS version, which can be cumbersome and has proven to be error-prone for package managers. Moreover, the branch names between the different repositories in a complex architecture might not be consistent. Last but not least, sometimes the repositories themselves might change their names or location between different versions.
 
-In a nutshell, we recommand creating a different workspace for your application and clone each repository in a different folder for each version. This way it is far more easier to switch from one version to another, before switching to a new version you simply need to unlink the previous version workspace:
+In a nutshell, we recommend creating a different workspace for your application and clone each repository in a different folder for each version. This way it is far more easier to switch from one version to another, before switching to a new version you simply need to unlink the previous version workspace:
 
 ```bash
 // We are currently using NodeJS v12
@@ -169,7 +160,7 @@ Found a bug ? Missing a Feature ? Want to contribute ? check out our [contributi
 
 Licensed under the [MIT license](LICENSE).
 
-Copyright (c) 2017-presdent [Kalisio](https://kalisio.com)
+Copyright (c) 2017-present [Kalisio](https://kalisio.com)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://kalisio.github.io/kalisioscope/kalisio/kalisio-logo-dark.svg"">

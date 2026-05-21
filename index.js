@@ -153,11 +153,6 @@ async function run (workspace) {
     try {
       const packageManager = getModulePackageManager()
       const packages = scanModulePackages(options)
-      if (programOptions.branch || programOptions.switch) {
-        // Check if branch is forced on module, otherwise use CLI one
-        const branch = options.branch || programOptions.branch
-        if (branch) await git.switch(branch, module)
-      }
       if (programOptions.install) {
         await packageManager.install(module, options)
       }
@@ -267,8 +262,6 @@ cli
   .option('-u, --url <url>', 'Git server base URL', { default: 'https://github.com' })
   .option('-c, --clone [branch]', 'Clone git repositories (with target branch) for all modules')
   .option('--shallow-clone', 'Perform a shallow clone, ie. will not pull the whole repository history')
-  .option('-b, --branch <branch>', 'Switch to target git branch in all modules where it does exist')
-  .option('-s, --switch', 'Switch all modules to the default git branch specified in workspace (if any)')
   .option('-p, --pull', 'Pull repositories for all modules')
   .option('-i, --install', 'Install dependencies for all modules')
   .option('--check-files', 'Check files during install (yarn only)')
