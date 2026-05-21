@@ -3,8 +3,8 @@ import { logger } from './logger.js'
 // ── Yarn implementation ───────────────────────────────────────────────────
 
 class Yarn {
-  constructor (options = {}, commander) {
-    this.options = options
+  constructor (programOptions = {}, commander) {
+    this.programOptions = programOptions
     this.commander = commander
   }
 
@@ -14,7 +14,7 @@ class Yarn {
 
   async install (module, moduleOptions = {}) {
     const opts = []
-    if (this.options.checkFiles) opts.push('--check-files')
+    if (this.programOptions.checkFiles) opts.push('--check-files')
     if (moduleOptions.ignoreOptional === undefined || moduleOptions.ignoreOptional === true) {
       opts.push('--ignore-optional')
     }
@@ -29,7 +29,7 @@ class Yarn {
   }
 
   async link (module) {
-    const opts = this.options.linkFolder ? `--link-folder ${this.options.linkFolder}` : ''
+    const opts = this.programOptions.linkFolder ? `--link-folder ${this.programOptions.linkFolder}` : ''
     logger.push(module, 'Linking...')
     try {
       await this.commander.run(`yarn link ${opts}`.trimEnd(), module)
@@ -41,7 +41,7 @@ class Yarn {
   }
 
   async unlink (module) {
-    const opts = this.options.linkFolder ? `--link-folder ${this.options.linkFolder}` : ''
+    const opts = this.programOptions.linkFolder ? `--link-folder ${this.programOptions.linkFolder}` : ''
     logger.push(module, 'Unlinking...')
     try {
       await this.commander.run(`yarn unlink ${opts}`.trimEnd(), module)
@@ -53,7 +53,7 @@ class Yarn {
   }
 
   async linkDependency (dependency) {
-    const opts = this.options.linkFolder ? `--link-folder ${this.options.linkFolder}` : ''
+    const opts = this.programOptions.linkFolder ? `--link-folder ${this.programOptions.linkFolder}` : ''
     logger.push(dependency, 'Linking...')
     try {
       await this.commander.run(`yarn link ${dependency} ${opts}`.trimEnd(), dependency)
@@ -65,7 +65,7 @@ class Yarn {
   }
 
   async unlinkDependency (dependency) {
-    const opts = this.options.linkFolder ? `--link-folder ${this.options.linkFolder}` : ''
+    const opts = this.programOptions.linkFolder ? `--link-folder ${this.programOptions.linkFolder}` : ''
     logger.push(dependency, 'Unlinking...')
     try {
       await this.commander.run(`yarn unlink ${dependency} ${opts}`.trimEnd(), dependency)
@@ -81,7 +81,7 @@ class Yarn {
 
 class Pnpm {
   constructor (options = {}, commander) {
-    this.options = options
+    this.programOptions = options
     this.commander = commander
   }
 

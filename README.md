@@ -2,7 +2,10 @@
 
 _kommand line interface_
 
-The **KDK CLI** (a.k.a. **kommand line interface** or **kli**) is a multiplexer for usual git/yarn commands initially created to develop [KDK](https://github.com/kalisio/kdk)-based applications more easily. It allows to quickly clone, install, link, unlink, switch branch on all modules and applications using a single command. It can be used by any project requiring to manage a dependency tree between different NodeJS modules stored in git repositories.
+The **KDK CLI** (a.k.a. **kommand line interface** or **kli**) is a multiplexer for usual git/yarn/pnpm commands initially created to
+develop [KDK](https://github.com/kalisio/kdk)-based applications more easily. It allows to quickly clone, install, link, unlink,
+switch branch on all modules and applications using a single command. It can be used by any project requiring to manage a dependency
+tree between different NodeJS modules stored in git repositories.
 
 ## Concepts
 
@@ -10,9 +13,12 @@ The CLI relies on a workspace file defining the dependency tree between your (KD
 
 ```js
 module.exports = {
+  'feathers-webpush': {
+    branch: 'master'
+  }
   kdk: {
-    dependencies: [],
-    branches: ['master', 'test']
+    dependencies: ['@kalisio/feathers-webpush'],
+    branch: 'master'
   },
   kApp: {
     application: true,
@@ -28,7 +34,6 @@ Each key is a git repository, i.e. a module, monorepo or application, with the f
 |------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `dependencies`   | List of dependent (KDK-)based modules if any                                                                                                                                           |
 | `branch`         | Branch the module should be forced on whatever the target branch of the CLI                                                                                                            |
-| `branches`       | List of branches the module is available on (if the target branch of the CLI is not included it will be skipped)                                                                       |
 | `application`    | Indicates if this is the main KDK-based application module, i.e. it has an api subfolder                                                                                               |
 | `path`           | Relative path to the repository on the local disk                                                                                                                                      |
 | `organization`   | GitHub/GitLab organization the repository belongs to                                                                                                                                   |
@@ -164,7 +169,11 @@ Found a bug ? Missing a Feature ? Want to contribute ? check out our [contributi
 
 Licensed under the [MIT license](LICENSE).
 
-Copyright (c) 2017-20xx [Kalisio](https://kalisio.com)
+Copyright (c) 2017-presdent [Kalisio](https://kalisio.com)
 
-[![Kalisio](https://kalisio.github.io/kalisioscope/kalisio/kalisio-logo-light-256x96.png)](https://kalisio.com)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://kalisio.github.io/kalisioscope/kalisio/kalisio-logo-dark.svg"">
+  <source media="(prefers-color-scheme: light)" srcset="https://kalisio.github.io/kalisioscope/kalisio/kalisio-logo-light.svg">
+  <img alt="Kalisio" src="https://kalisio.github.io/kalisioscope/kalisio/kalisio-logo-light.svg.png" height="96">
+</picture>
 

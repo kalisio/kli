@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import { logger } from './logger.js'
 
 export class Git {
@@ -11,9 +12,9 @@ export class Git {
     return repoUrl
   }
 
-  async clone (repoUrl, output, opts = {}, module, alreadyExists) {
+  async clone (repoUrl, output, opts = {}, module) {
     logger.push(module, 'Cloning...')
-    if (alreadyExists) {
+    if (fs.existsSync(output)) {
       logger.warning('clone skipped: module already cloned')
     } else {
       const { branch, shallowClone } = opts
