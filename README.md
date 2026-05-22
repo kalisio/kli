@@ -171,13 +171,6 @@ Options:
   -h, --help                         output usage information
 ```
 
-To enable verbose output for debugging:
-
-```bash
-export DEBUG=kli
-kli workspace.js --link
-```
-
 ## Tips
 
 ### Working on multiple versions
@@ -229,6 +222,14 @@ Not illustrated, but part of the solution, the `Logger` provides structured cons
 <div align="center">
   <img src="./docs/object-model.svg" alt="Object model" />
 </div>
+
+### Debugging
+
+To enable verbose output for debugging:
+
+```bash
+export DEBUG=kli
+```
 
 ## License
 
