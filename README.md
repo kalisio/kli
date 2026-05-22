@@ -217,10 +217,15 @@ for details.
 
 Here is a suggested paragraph:
 
-As illustrated below, the **kli object model** is structured around three core layers. At the top, `Workspace` orchestrates the overall execution: it instantiates and iterates over `Module` objects, builds the shared `packageDirs` map from their sub-packages, and calls `Reporter.report()` at the end of the run. Each `Module` encapsulates all the state and behaviour related to a single repository — its paths, options, and operations — and owns a `Commander` instance configured with its working directory as a fixed `cwd`. `Commander` is the single point of execution: it runs shell commands, logs output, and calls `Reporter.addError()` on failure, making it the only place where error handling lives. From its `Commander`, each `Module` derives a `Git` instance for version control operations and a `PackageManager` — either `Yarn` or `Pnpm`, selected by `createPackageManager()` based on the `packageManager` field in `package.json` — for install, link, and dependency management. `Reporter` is a singleton shared across the entire run, collecting errors from all modules and surfacing them in a final report.
+As illustrated below, the **kli object model** is structured around three core layers. 
+* At the top, `Workspace` orchestrates the overall execution: it instantiates and iterates over `Module` objects, builds the shared `packageDirs` map from their sub-packages, and calls `Reporter.report()` at the end of the run. 
+* Each `Module` encapsulates all the state and behaviour related to a single repository — its paths, options, and operations — and owns a `Commander` instance configured with its working directory as a fixed `cwd`. 
+* `Commander` is the single point of execution: it runs shell commands, logs output, and calls `Reporter.addError()` on failure, making it the only place where error handling lives. From its `Commander`, each `Module` derives a `Git` instance for version control operations and a `PackageManager` — either `Yarn` or `Pnpm`, selected by `createPackageManager()` based on the `packageManager` field in `package.json` — for install, link, and dependency management. 
+
+`Reporter` is a singleton shared across the entire run, collecting errors from all modules and surfacing them in a final report.
 
 <div align="center">
-  <img src="./docs/object-model.svg" alt="Object model" width="400"/>
+  <img src="./docs/object-model.svg" alt="Object model" width="600"/>
 </div>
 
 ## License
