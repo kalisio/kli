@@ -6,7 +6,7 @@
   "homepage": "https://github.com/kalisio/kli",
   "main": "index.js",
   "bin": {
-    "kli": "index.js"
+    "kli": "cli.js"
   },
   "lint-staged": {
     "*.{js,cjs,mjs}": [

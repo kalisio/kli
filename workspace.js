@@ -55,7 +55,7 @@ export class Workspace {
     reporter.report()
   }
 
-  static async load (workspaceFilePath, programOptions) {
+  static async load (workspaceFilePath, programOptions = { organization: 'kalisio', url: 'https://github.com' }) {
     const resolvedPath = path.resolve(workspaceFilePath)
     if (!fs.existsSync(resolvedPath)) {
       logger.negative(`Workspace file not found: ${resolvedPath}`)
