@@ -19,6 +19,7 @@ export class Module {
     debug(`[${name}] dir: ${this.dir}`)
     this.commander = new Commander(programOptions, this.dir)
     this.git = new Git(this.commander)
+    this.package = this.resolvePackage(this.dir)
     this.pm = this.resolvePackageManager(this.dir)
     debug(`[${name}] package manager: ${this.pm.getName()}`)
     this.packages = this.scanPackages()
@@ -40,6 +41,15 @@ export class Module {
     return path.isAbsolute(optPath)
       ? path.join(optPath, output)
       : path.join(process.cwd(), optPath, output)
+  }
+
+  resolvePackage (dir) {
+    const pkgJsonPath = path.join(dir, 'package.json')
+    let pkg = {}
+    if (fs.existsSync(pkgJsonPath)) {
+      pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'))
+    }
+    return pkg
   }
 
   resolvePackageManager (dir) {
