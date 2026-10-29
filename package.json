@@ -47,7 +47,7 @@
   "directories": {},
   "dependencies": {
     "boxen": "^8.0.1",
-    "cac": "^7.0.0",
+    "commander": "^14.0.0",
     "chalk": "4",
     "debug": "^4.4.3"
   },

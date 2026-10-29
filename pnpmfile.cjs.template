@@ -1,0 +1,19 @@
+const links = __LINKS__
+
+function readPackage (pkg, context) {
+  const dependencies = links[pkg.name]
+  if (!dependencies) return pkg
+
+  for (const [dependency, target] of Object.entries(dependencies)) {
+    const field = ['dependencies', 'devDependencies', 'optionalDependencies']
+      .find(field => Object.hasOwn(pkg[field] || {}, dependency)) || 'dependencies'
+
+    pkg[field] ||= {}
+    pkg[field][dependency] = target
+    context.log(`Linking ${dependency} for ${pkg.name} → ${target}`)
+  }
+
+  return pkg
+}
+
+module.exports = { hooks: { readPackage } }

@@ -16,7 +16,7 @@ export class Commander {
     const { module, message } = context
     try {
       const { stdout, stderr } = await exec(command, { cwd: this.cwd })
-      if (this.programOptions.commandOutput) logger.log(stdout.trim())
+      if (this.programOptions.commandOutput) logger.info(stdout.trim())
       if (stderr !== '') logger.warning(stderr.trim())
       if (message) logger.positive(message)
     } catch (error) {

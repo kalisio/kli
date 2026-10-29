@@ -15,11 +15,12 @@ export const reporter = {
   },
 
   report () {
-    const nbErrors = Object.keys(this._errors).length
+    const nbErrors = Object.values(this._errors).flat().length
     if (nbErrors === 0) return
     logger.negativeBox('Encountered errors during execution, you might review it below', plural(nbErrors, 'error'))
     for (const [context, errors] of Object.entries(this._errors)) {
       logger.negativeBox(errors.map(e => e.stderr || e.message || e).join('\n'), `${context} : ${plural(errors.length, 'error')}`)
     }
+    process.exitCode = 1
   }
 }

@@ -2,120 +2,138 @@
 
 _kommand line interface_
 
-The **KDK CLI** (a.k.a. **kommand line interface** or **kli**) is a multiplexer for usual git/yarn/pnpm commands initially created to
-develop [KDK](https://github.com/kalisio/kdk)-based applications more easily. It allows to quickly clone, install, link, unlink,
-switch branch on all modules and applications using a single command. It can be used by any project requiring to manage a dependency
-tree between different NodeJS modules stored in git repositories.
+**KLI** is a command-line tool for managing Git repositories and their Node.js dependencies as a workspace. Originally developed for [KDK](https://github.com/kalisio/kdk)-based applications, it can clone, update, install, link and unlink multiple repositories in a single command.
+
+**KLI** supports **pnpm** for current projects and **Yarn Classic** for legacy projects. Each repository is managed using its own package manager.
 
 ## Concepts
 
-The CLI relies on a workspace file defining the dependency tree between your (KDK-based) application and modules like this:
+A workspace is a JavaScript configuration file describing the repositories to manage and the local dependencies between them:
 
 ```js
 module.exports = {
-  'feathers-webpush': {
-    branch: 'master'
+  'common-ekosystem': {
+    branch: 'master',
+    path: process.env.KALISIO_DEVELOPMENT_DIR
   },
   kdk: {
-    dependencies: ['@kalisio/feathers-webpush'],
-    branch: 'master'
+    branch: 'master',
+    path: process.env.KALISIO_DEVELOPMENT_DIR,
+    dependencies: ['@kalisio/common-core']
   },
-  kApp: {
+  'example-api': {
+    branch: 'main',
+    devDependency: true,
+    dependencies: ['@kalisio/kdk']
+  },
+  'example-app': {
+    branch: 'main',
     application: true,
-    dependencies: ['@kalisio/kdk'],
-    branch: 'master'
+    dependencies: ['@kalisio/kdk']
   }
 }
 ```
 
-Each key is a git repository, i.e. a module, monorepo or application, with the following available properties:
+Each top-level key identifies a Git repository (module, monorepo or application). Supported properties are:
 
 | Property | Description |
 |---|---|
-| `dependencies` | List of dependent modules to link |
-| `branch` | Branch the module should be forced on whatever the target branch of the CLI |
-| `application` | Indicates if this is the main application module, i.e. it has an `api` subfolder |
-| `path` | Relative or absolute path to the repository on the local disk |
-| `organization` | GitHub/GitLab organization the repository belongs to |
-| `output` | Name of the repository folder on the local disk |
-| `url` | Root URL to the remote git repositories (defaults to `https://github.com`) |
-| `ignoreOptional` | Whether `yarn install` should run with `--ignore-optional` flag, defaults to `true` |
-| `packages` | For monorepos: map of sub-packages with their own `dependencies` (see below) |
-| `prefix` | Prefix to prepend to sub-package names when resolving their qualified name |
-| `forceLink` | Force link/unlink even for pnpm-managed modules (see below) |
+| `dependencies` | Package names to link locally when the corresponding targets are selected in the workspace. |
+| `devDependency` | Exclude this entire module when **KLI** is run with `--production`. Defaults to `false`. |
+| `branch` | Branch or tag to check out when cloning the repository. Takes precedence over the branch given to `--clone`. |
+| `application` | Indicates that the repository also contains an `api/` project, which is installed separately. |
+| `path` | Parent directory for the repository, relative to the current working directory or absolute. |
+| `organization` | GitHub organization or GitLab group hosting the repository. |
+| `output` | Local repository directory name (defaults to the workspace key). |
+| `url` | Git server base URL (defaults to `https://github.com`). |
+| `ignoreOptional` | For Yarn only: use `--ignore-optional` during installation (enabled by default). |
+| `packages` | For monorepos: mapping of sub-package directories to their local `dependencies` (see below). |
+| `prefix` | Prefix used when constructing qualified names for monorepo packages. |
 
-> [!TIP]
-> The `branch` option can also target a git tag, typically for production releases.
+> [!NOTE]
+> `dependencies` and `devDependency` are **KLI workspace options**, not the `dependencies` and `devDependencies` fields in `package.json`. In particular, `devDependency: true` controls which *repositories* **KLI** processes; it does not pass `--prod` to the package manager.
 
 ### Monorepo support
 
-For monorepos, the `packages` property maps each sub-package to its own dependency list:
+**KLI** discovers sub-packages in a repository's `packages/` directory. For linking, their names are resolved as `@<organization>/<name>` or `@<organization>/<prefix>-<name>` if `prefix` is configured.
+
+The `packages` property specifies the dependencies to link for individual sub-packages:
 
 ```js
 module.exports = {
-  'feathers-ekosystem': {
-    packages: {
-      'feathers-import-export': {
-        dependencies: ['@kalisio/feathers-s3']
-      },
-      'feathers-s3': {
-        dependencies: []
-      }
-    },
+  'common-ekosystem': {
     branch: 'master',
     path: process.env.KALISIO_DEVELOPMENT_DIR
+  },
+  'feathers-ekosystem': {
+    branch: 'master',
+    path: process.env.KALISIO_DEVELOPMENT_DIR,
+    packages: {
+      'feathers-s3': {
+        dependencies: ['@kalisio/common-core']
+      },
+      'feathers-import-export': {
+        dependencies: ['@kalisio/common-core']
+      }
+    }
   }
 }
 ```
 
-Sub-packages are discovered automatically from the `packages/` directory of the repository. Their qualified
-name is resolved as `@<organization>/<prefix>-<name>` if a `prefix` is set, or `@<organization>/<name>`
-otherwise.
+KLI discovers the repositories and their packages **after cloning or pulling** and **before installing**. This makes it possible to prepare local links in a fresh workspace. Repository directories and their `package.json` files must exist before discovery; use `--clone` when setting up a new workspace.
 
-### pnpm support
+### Package managers and local linking
 
-`kli` supports both yarn and pnpm workspaces. The package manager is auto-detected from the `packageManager`
-field in each module's `package.json`.
+KLI determines a repository's package manager from the `packageManager` field in its root `package.json`. Projects declaring pnpm use pnpm; otherwise KLI uses Yarn Classic. For applications, the `api/` project is inspected and installed separately.
+
+**pnpm — generated hooks**
+
+When `--install` is used, **KLI** resolves the configured local dependencies against the **selected** workspace modules and discovered monorepo packages. For pnpm repositories with links to apply, it generates a `.pnpmfile.cjs` before running `pnpm install`.
+
+The hook rewrites matching dependency versions to relative `link:` paths. If a configured local dependency is absent from a consumer's `package.json`, the hook also injects it into the effective dependencies used for installation. It does not edit the source `package.json`.
+
+For applications, **KLI** also generates the hook in `api/` so that the API installation can resolve its own local links. Generated `.pnpmfile.cjs` files belong to KLI: they can be overwritten or removed during workspace preparation and should be excluded from Git (for example with `.gitignore`).
+
+When a hook is generated, **KLI** runs `pnpm install --lockfile=false`: the project's lockfile is neither read nor modified during that local installation.
 
 > [!IMPORTANT]
-> Each `package.json` in a monorepo (including sub-packages) should declare its `packageManager` field explicitly
-> so `kli` can detect the right package manager for each directory.
+> The local dependency injection is intended for workspace-specific development or test dependencies. Runtime dependencies should still be declared in the relevant `package.json` so the package remains independently installable. KLI warns when a configured link target is unavailable.
 
-By default, **pnpm modules are not linked globally** — `--link` has no effect on them unless `forceLink` is set.
-This is because pnpm manages symlinks internally via its `node_modules` structure. Use `forceLink: true` in the
-workspace file to opt in:
+For pnpm projects, `--link` and `--unlink` do **not** perform manual linking: the local links are established during `--install` through the generated hook.
 
-```js
-module.exports = {
-  'my-pnpm-module': {
-    forceLink: true,
-    branch: 'master'
-  }
-}
+**Yarn Classic — legacy linking**
+
+Yarn projects retain the historical `yarn link` / `yarn unlink` behavior. For these projects, run `--install --link` to install and then register/apply the configured links. `--link-folder` still selects a custom Yarn link directory.
+
+**KLI** does **not** support local links between Yarn and pnpm projects. Legacy Yarn projects can consume **published** packages built with pnpm through the usual package registry.
+
+### Production selection
+
+Mark repositories required only for development or tests with `devDependency: true`. Pass `--production` to omit them from the selected workspace modules:
+
+```bash
+kli workspace.js --clone --install --production
 ```
 
-When a pnpm module is consumed by a yarn application, `kli` registers it in the yarn global link folder (or the folder
-specified by `--link-folder`) so the yarn app can resolve it.
+This also removes the omitted repositories from the set of available local link targets. The flag selects repositories only; it does not alter the normal dependency-installation mode of Yarn or pnpm.
+
+Use `--modules` to restrict execution to an explicit list of workspace entries. Only selected modules are discovered and considered as local link targets; links pointing to other modules are skipped with a warning.
 
 ## Installation
 
 ### Prerequisites
 
-Before you continue, you need to make sure that the following tools are installed on your system:
+Install [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git), [Node.js](https://nodejs.org/en/download), and the package managers required by your workspace ([pnpm](https://pnpm.io/installation) and/or [Yarn Classic](https://classic.yarnpkg.com/lang/en/docs/install/)).
 
-1. [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-2. [Node](https://nodejs.org/en/download)
-3. [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/#debian-stable) and/or [pnpm](https://pnpm.io/installation)
-
-### Production mode
+### Global installation
 
 ```bash
 npm install -g @kalisio/kli
 ```
 
-### Development mode
+### Development installation
 
-To use the master branch locally:
+To work with the repository directly:
 
 ```bash
 git clone https://github.com/kalisio/kli.git
@@ -126,98 +144,106 @@ yarn link
 
 ## Usage
 
-By default, all operations will take effect in the current working directory so that subdirectories named according to modules will be created or expected to already exist.
+By default, operations use the current working directory. The `path` and `output` properties let individual repositories use different locations.
 
 ```bash
-# Clone all repositories
-kli workspace.js --clone
-# Install dependencies in all modules and application
+# Prepare a workspace from scratch: clone, discover, generate pnpm hooks and install
+kli workspace.js --clone --install
+
+# Install repositories that already exist locally
 kli workspace.js --install
-# Link required modules
-kli workspace.js --link
-# Unlink required modules
+
+# Install and apply historical Yarn links (pnpm linking still happens during install)
+kli workspace.js --clone --install --link
+
+# Remove historical Yarn links
 kli workspace.js --unlink
+
+# Process only specific repositories
+kli workspace.js --modules common-ekosystem,kdk --install
+
+# Exclude modules marked devDependency: true
+kli workspace.js --clone --install --production
 ```
 
-> [!IMPORTANT]
-> By default all git operations target the `kalisio` organization. You can change this for the whole workspace using the `--organization` CLI option, or on specific modules using the `organization` property in the workspace file.
+**KLI** processes the selected workspace in this order:
+
+1. Clone and/or pull repositories, if requested.
+2. Discover repository manifests and monorepo packages.
+3. Generate pnpm hooks before any installation, when `--install` is requested.
+4. Install each repository (and its `api/` project, if applicable).
+5. Apply or remove legacy Yarn links when requested.
 
 > [!IMPORTANT]
-> All operations are performed relative to the CWD by default. You can change this for specific modules using the `path` property in the workspace file (relative to CWD or absolute).
+> `--install` without `--clone` expects all selected repository directories and their manifests to exist locally. Use `--fail-on-error` in CI to make command failures stop the job.
 
 > [!NOTE]
-> Sample workspaces are provided in this repository.
+> Git operations default to the `kalisio` organization. Use `--organization` to change it globally or the `organization` property on individual modules. Sample workspaces are available in this repository.
 
-Full CLI usage:
+### CLI options
 
-```bash
+```text
 Usage: kli <workspacefile> [options]
 
 Options:
-  -V, --version                      output the version number
-  -o, --organization <org>           GitHub organization or GitLab group owing the project (default: "kalisio")
-  -u, --url <url>                    Git server base URL (default: "https://github.com")
-  -c, --clone [branch]               Clone git repositories (with target branch) for all modules
-  --shallow-clone                    Perform a shallow clone, ie. will not pull the whole repository history
-  -p, --pull                         Pull git repositories for all modules
-  -i, --install                      Install dependencies for all modules
-  --check-files                      Use --check-files flag when running yarn install
-  -l, --link                         Link packages
-  --link-folder <folder>             Specify the folder to use to register yarn links
-  -ul, --unlink                      Unlink packages
-  -m, --modules <list>               Comma separated list of modules from the workspace to apply command on
-  --command-output                   Show command output
-  --fail-on-error                    Exit on error
-  -h, --help                         output usage information
+  -V, --version                  Show the version
+  -o, --organization <org>       GitHub organization or GitLab group (default: kalisio)
+  -u, --url <url>                Git server base URL (default: https://github.com)
+  -c, --clone [branch]           Clone repositories (branch used for modules without a branch)
+  --shallow-clone                Perform shallow clones
+  -p, --pull                     Pull repositories
+  -i, --install                  Install dependencies
+  --check-files                  Check files during Yarn installation
+  -l, --link                     Link packages (Yarn only)
+  --link-folder <folder>         Directory for Yarn links
+  -ul, --unlink                  Unlink packages (Yarn only)
+  -m, --modules <list>           Comma-separated list of modules
+  --production                   Exclude modules marked devDependency: true
+  --command-output               Show command output
+  --fail-on-error                Exit on command error
+  -h, --help                     Show help
 ```
 
 ## Tips
 
 ### Working on multiple versions
 
-In order to be able to switch easily between different versions of NodeJS you usually use a version manager like [n](https://github.com/tj/n)/[nvm](https://github.com/creationix/nvm) under Linux/Mac or [nvm](https://github.com/coreybutler/nvm-windows) under Windows. However, as links are global to a Yarn installation it can be tricky to switch between different versions of the same repository using different NodeJS versions.
-
-We recommend creating a different workspace for your application and clone each repository in a different folder for each version. Before switching to a new version you simply need to unlink the previous workspace:
+Yarn Classic links can depend on the Yarn installation associated with a Node.js version. Keep separate workspaces for different application versions, and unlink an old Yarn workspace before linking a different one:
 
 ```bash
-# Currently using NodeJS v12
-cd nodejs12
-kli workspace-nodejs12.js --link
-...
-# Switching to NodeJS v16
-kli workspace-nodejs12.js --unlink
-nvm use 16.0.0
-cd nodejs16
-kli workspace-nodejs16.js --link
+# Leave a legacy Yarn workspace
+kli workspace-old.js --unlink
+
+# Switch to another Node.js version and workspace
+nvm use 24
+kli workspace-new.js --install --link
 ```
 
-### Aliasing the KLI
+pnpm projects do not use this global Yarn link mechanism: their local links are generated for each workspace when installing.
 
-When installing the **KLI** in development mode, it can be useful to create an alias in your `.bashrc`:
+### Aliasing KLI
+
+When working from a **KLI** source checkout, you can define an alias in `.bashrc`:
 
 ```bash
-alias kli="node Path/to/kli/index.js"
+alias kli="node /path/to/kli/bin.js"
 ```
 
 ## Contributing
 
 ### Guidelines
 
-Found a bug ? Missing a feature ? Want to contribute ? Please refer to our [contribution guidelines](./docs/CONTRIBUTING.md)
-for details.
+Found a bug, missing feature or opportunity to contribute? See the [contribution guidelines](./docs/CONTRIBUTING.md).
 
 ### Object model
 
-Here is a suggested paragraph:
+**KLI** is structured around three main layers:
 
-As illustrated below, the **kli object model** is structured around three core layers.
-* At the top, `Workspace` orchestrates the overall execution: it instantiates and iterates over `Module` objects, builds the shared `packageDirs` map from their sub-packages, and calls `Reporter.report()` at the end of the run.
-* Each `Module` encapsulates all the state and behaviour related to a single repository — its paths, options, and operations — and owns a `Commander` instance configured with its working directory as a fixed `cwd`.
-* `Commander` is the single point of execution: it runs shell commands, logs output, and calls `Reporter.addError()` on failure, making it the only place where error handling lives. From its `Commander`, each `Module` derives a `Git` instance for version control operations and a `PackageManager` — either `Yarn` or `Pnpm`, selected by `createPackageManager()` based on the `packageManager` field in `package.json` — for install, link, and dependency management.
+- `Workspace` selects modules and orchestrates cloning, discovery, pnpm hook generation, installation and linking.
+- `Module` represents a repository and owns its paths, Git operations, package discovery and dependency configuration. It delegates installations and legacy linking to the appropriate package manager.
+- `Commander` executes shell commands in a fixed working directory. `Git` and the `Yarn` / `Pnpm` implementations use it to run their commands.
 
-`Reporter` is a singleton shared across the entire run, collecting errors from all modules and surfacing them in a final report.
-
-Not illustrated, but part of the solution, the `Logger` provides structured console output with push/pull context tracking so that log lines are always attributed to the right module and operation.
+`Reporter` collects command errors for the final report, and `Logger` provides contextual console output.
 
 <div align="center">
   <img src="./docs/object-model.svg" alt="Object model" />
@@ -225,10 +251,10 @@ Not illustrated, but part of the solution, the `Logger` provides structured cons
 
 ### Debugging
 
-To enable verbose output for debugging:
+Enable verbose **KLI** diagnostics with:
 
 ```bash
-export DEBUG=kli
+DEBUG=kli kli workspace.js --install
 ```
 
 ## License

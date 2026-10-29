@@ -1,40 +1,96 @@
 import path from 'node:path'
 import fs from 'node:fs'
 import { pathToFileURL } from 'node:url'
+import makeDebug from 'debug'
 import { Module } from './module.js'
 import { reporter } from './reporter.js'
 import { logger } from './logger.js'
 
+const debug = makeDebug('kli')
+
 export class Workspace {
   constructor (config, programOptions) {
     this.programOptions = programOptions
-    this.modules = Object.entries(config)
+    this.selectedModules = Object.entries(config)
+      .filter(([name, options]) =>
+        (!programOptions.modules || programOptions.modules.includes(name)) &&
+        (!programOptions.production || !options.devDependency)
+      )
       .map(([name, options]) => new Module(name, options, programOptions))
-    this.packageDirs = Object.fromEntries(
-      this.modules.flatMap(m => m.getPackageDirs())
-    )
-  }
-
-  get selectedModules () {
-    return this.modules.filter(m => m.isSelected())
+    this.packageDirs = {}
+    debug(`Selected modules: ${this.selectedModules.map(m => m.name).join(', ')}`)
   }
 
   async run () {
-    // Step 1 — clone/pull + install + link packages
+    // Step 1 — Clone/pull repositories
     for (const mod of this.selectedModules) {
       logger.info(`Preparing ${mod.name}`)
       try {
         if (this.programOptions.clone) await mod.clone()
         if (this.programOptions.pull) await mod.pull()
+      } catch (error) {
+        if (this.programOptions.failOnError) throw error
+      }
+    }
+
+    // Step 2 — Discover packages and generate pnpm links
+    let discoveryFailed = false
+    for (const mod of this.selectedModules) {
+      try {
+        mod.discover()
+      } catch (error) {
+        reporter.addError(mod.name, error)
+        discoveryFailed = true
+      }
+    }
+    if (discoveryFailed) {
+      reporter.report()
+      process.exit(1)
+    }
+    this.packageDirs = Object.fromEntries(
+      this.selectedModules.flatMap(m => m.getPackageDirs())
+    )
+
+    // Step 3 - Generate pnpm hook
+    if (this.programOptions.install) {
+      const targets = {
+        ...Object.fromEntries(
+          this.selectedModules
+            .filter(m => m.package.name)
+            .map(m => [m.package.name, m.dir])
+        ),
+        ...this.packageDirs
+      }
+      const template = fs.readFileSync(new URL('./pnpmfile.cjs.template', import.meta.url), 'utf8')
+      for (const mod of this.selectedModules) {
+        if (mod.pm.getName() !== 'pnpm') continue
+        const links = mod.generateLinks(targets)
+        const files = [path.join(mod.dir, '.pnpmfile.cjs')]
+        if (mod.options.application) {
+          files.push(path.join(mod.dir, 'api', '.pnpmfile.cjs'))
+        }
+        if (Object.keys(links).length === 0) {
+          for (const file of files) fs.rmSync(file, { force: true })
+          continue
+        }
+        const content = template.replace('__LINKS__', JSON.stringify(links, null, 2))
+        for (const file of files) fs.writeFileSync(file, content)
+      }
+    }
+
+    // Step 4 — Install and link packages
+    for (const mod of this.selectedModules) {
+      try {
         if (this.programOptions.install) await mod.install()
         if (this.programOptions.link) await mod.link()
       } catch (error) {
         if (this.programOptions.failOnError) throw error
       }
     }
-    // Step 2 — link/unlink dependencies
+
+    // Step 5 — Link/unlink dependencies (Yarn)
     if (this.programOptions.link || this.programOptions.unlink) {
-      for (const mod of this.modules) {
+      for (const mod of this.selectedModules) {
         try {
           if (this.programOptions.link) await mod.linkDependencies(this.packageDirs)
           else await mod.unlinkDependencies()
@@ -43,7 +99,8 @@ export class Workspace {
         }
       }
     }
-    // Step 3 — unlink packages
+
+    // Step 6 — Unlink packages
     for (const mod of this.selectedModules) {
       logger.info(`Finalizing ${mod.name}`)
       try {
@@ -52,6 +109,7 @@ export class Workspace {
         if (this.programOptions.failOnError) throw error
       }
     }
+
     reporter.report()
   }
 
