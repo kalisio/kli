@@ -21,6 +21,5 @@ export const reporter = {
     for (const [context, errors] of Object.entries(this._errors)) {
       logger.negativeBox(errors.map(e => e.stderr || e.message || e).join('\n'), `${context} : ${plural(errors.length, 'error')}`)
     }
-    process.exitCode = 1
   }
 }

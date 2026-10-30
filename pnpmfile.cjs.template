@@ -16,4 +16,9 @@ function readPackage (pkg, context) {
   return pkg
 }
 
-module.exports = { hooks: { readPackage } }
+function updateConfig (config) {
+  config.useLockfile = false
+  return config
+}
+
+module.exports = { hooks: { readPackage, updateConfig } }

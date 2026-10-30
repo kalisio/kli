@@ -33,20 +33,21 @@ export class Workspace {
       }
     }
 
-    // Step 2 — Discover packages and generate pnpm links
-    let discoveryFailed = false
+    // Step 2 — Discover packages
+    const discoveredModules = []
     for (const mod of this.selectedModules) {
       try {
         mod.discover()
+        discoveredModules.push(mod)
       } catch (error) {
         reporter.addError(mod.name, error)
-        discoveryFailed = true
+        if (this.programOptions.failOnError) {
+          reporter.report()
+          return
+        }
       }
     }
-    if (discoveryFailed) {
-      reporter.report()
-      process.exit(1)
-    }
+    this.selectedModules = discoveredModules
     this.packageDirs = Object.fromEntries(
       this.selectedModules.flatMap(m => m.getPackageDirs())
     )
