@@ -34,23 +34,26 @@ export class Workspace {
     }
 
     // Step 2 — Discover packages
-    const discoveredModules = []
-    for (const mod of this.selectedModules) {
-      try {
-        mod.discover()
-        discoveredModules.push(mod)
-      } catch (error) {
-        reporter.addError(mod.name, error)
-        if (this.programOptions.failOnError) {
-          reporter.report()
-          return
+    if (this.programOptions.install ||
+      this.programOptions.link ||
+      this.programOptions.unlink) {
+      const discoveredModules = []
+      for (const mod of this.selectedModules) {
+        try {
+          if (mod.discover()) discoveredModules.push(mod)
+        } catch (error) {
+          reporter.addError(mod.name, error)
+          if (this.programOptions.failOnError) {
+            reporter.report()
+            return
+          }
         }
       }
+      this.selectedModules = discoveredModules
+      this.packageDirs = Object.fromEntries(
+        this.selectedModules.flatMap(m => m.getPackageDirs())
+      )
     }
-    this.selectedModules = discoveredModules
-    this.packageDirs = Object.fromEntries(
-      this.selectedModules.flatMap(m => m.getPackageDirs())
-    )
 
     // Step 3 - Generate pnpm hook
     if (this.programOptions.install) {

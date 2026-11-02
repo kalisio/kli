@@ -56,16 +56,14 @@ export class Module {
 
   discover () {
     const pkgJsonPath = path.join(this.dir, 'package.json')
-    if (!fs.existsSync(pkgJsonPath)) {
-      throw new Error(`[${this.name}] Missing package.json: ${pkgJsonPath}`)
-    }
+    if (!fs.existsSync(pkgJsonPath)) return false
     this.package = this.resolvePackage(this.dir)
     this.pm = this.resolvePackageManager(this.dir)
     debug(`[${this.name}] package manager: ${this.pm.getName()}`)
     // Scan packages
     const packagesDir = path.join(this.dir, 'packages')
     this.packages = null
-    if (!fs.existsSync(packagesDir)) return
+    if (!fs.existsSync(packagesDir)) return true
     const organization = this.options.organization || this.programOptions.organization || 'kalisio'
     this.packages = fs.readdirSync(packagesDir, { withFileTypes: true })
       .filter(f => f.isDirectory())
@@ -78,6 +76,7 @@ export class Module {
         }
       })
     debug(`[${this.name}] packages: ${this.packages.map(p => p.qualifiedName).join(', ')}`)
+    return true
   }
 
   // Expose package dirs for Workspace.packageDirs
