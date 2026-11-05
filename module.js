@@ -13,6 +13,7 @@ export class Module {
     this.name = name
     this.options = options
     this.programOptions = programOptions
+    this.repoName = options.name ?? name
     this.rootDir = this.resolveRootDir()
     this.dir = this.resolveDir()
     debug(`[${name}] rootDir: ${this.rootDir}`)
@@ -123,7 +124,7 @@ export class Module {
   async clone () {
     const organization = this.options.organization || this.programOptions.organization
     const url = this.options.url || this.programOptions.url
-    const repoUrl = this.git.buildRepoUrl(url, organization, this.name)
+    const repoUrl = this.git.buildRepoUrl(url, organization, this.repoName)
     const branch = this.options.branch || (typeof this.programOptions.clone === 'string' ? this.programOptions.clone : '')
     const git = new Git(new Commander(this.programOptions, this.rootDir))
     await git.clone(repoUrl, this.dir, { branch, shallowClone: this.programOptions.shallowClone }, this.name)
@@ -132,7 +133,7 @@ export class Module {
   async pull () {
     const organization = this.options.organization || this.programOptions.organization
     const url = this.options.url || this.programOptions.url
-    const repoUrl = this.git.buildRepoUrl(url, organization, this.name)
+    const repoUrl = this.git.buildRepoUrl(url, organization, this.repoName)
     await this.git.pull(repoUrl, this.name)
   }
 
