@@ -65,14 +65,13 @@ export class Module {
     const packagesDir = path.join(this.dir, 'packages')
     this.packages = null
     if (!fs.existsSync(packagesDir)) return true
-    const organization = this.options.organization || this.programOptions.organization || 'kalisio'
     this.packages = fs.readdirSync(packagesDir, { withFileTypes: true })
       .filter(f => f.isDirectory())
       .map(f => {
-        const packageName = this.options.prefix ? `${this.options.prefix}-${f.name}` : f.name
+        const dir = path.join(packagesDir, f.name)
         return {
           name: f.name,
-          qualifiedName: `@${organization}/${packageName}`,
+          qualifiedName: this.resolvePackage(dir).name,
           dir: path.join(packagesDir, f.name)
         }
       })
